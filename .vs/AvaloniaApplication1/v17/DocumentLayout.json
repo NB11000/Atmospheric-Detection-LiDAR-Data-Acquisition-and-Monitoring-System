@@ -1,0 +1,576 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\service\\ad_controlcs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\service\\ad_controlcs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\service\\ad_controlcs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\service\\ad_controlcs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\avaloniaapplication1.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\avaloniaapplication1.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\consoleapp1.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\consoleapp1.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\models\\data_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\models\\data_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\models\\voltage_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\models\\voltage_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\models\\usb1602.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\models\\usb1602.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\models\\ui_display.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\models\\ui_display.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\consoleapp1\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{0D43DC81-90C1-4DC9-A3F1-DD15BB11DE0D}|ConsoleApp1\\ConsoleApp1.csproj|solutionrelative:consoleapp1\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\service\\data_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\service\\data_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\avaloniaapplication1.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\avaloniaapplication1.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\viewmodels\\mainwindowviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\viewmodels\\mainwindowviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\views\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\views\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\viewmodels\\viewmodelbase.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\viewmodels\\viewmodelbase.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\service\\ui_display.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\service\\ui_display.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\views\\window1.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\views\\window1.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\views\\window1.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\views\\window1.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\models\\deviceconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\models\\deviceconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\service\\usb1602.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\service\\usb1602.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\service\\voltage_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\service\\voltage_block.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile5.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile5.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile4.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile4.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile3.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile3.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile2.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile2.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile11.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile11.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile10.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile10.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile1.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile1.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\properties\\publishprofiles\\folderprofile9.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\properties\\publishprofiles\\folderprofile9.pubxml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\app.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\app.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\app.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\app.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|e:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\avaloniaapplication1\\avaloniaapplication1\\views\\mainwindow.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}",
+      "RelativeMoniker": "D:0:0:{E5D0CC03-787B-45C4-A87C-3B1CAB0292D4}|AvaloniaApplication1\\AvaloniaApplication1.csproj|solutionrelative:avaloniaapplication1\\views\\mainwindow.axaml||{6D5344A2-2FCD-49DE-A09D-6A14FD1B1224}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 8,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ConsoleApp1",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\ConsoleApp1.csproj",
+              "RelativeDocumentMoniker": "ConsoleApp1\\ConsoleApp1.csproj",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\ConsoleApp1.csproj",
+              "RelativeToolTip": "ConsoleApp1\\ConsoleApp1.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-02-25T15:04:28.265Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Voltage_block.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\Voltage_block.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Models\\Voltage_block.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\Voltage_block.cs",
+              "RelativeToolTip": "ConsoleApp1\\Models\\Voltage_block.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwYAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:04:10.68Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "USB1602.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\USB1602.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Models\\USB1602.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\USB1602.cs",
+              "RelativeToolTip": "ConsoleApp1\\Models\\USB1602.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:03:35.65Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "UI_Display.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\UI_Display.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Models\\UI_Display.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\UI_Display.cs",
+              "RelativeToolTip": "ConsoleApp1\\Models\\UI_Display.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwYAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:03:35.005Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Data_Block.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\Data_Block.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Models\\Data_Block.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Models\\Data_Block.cs",
+              "RelativeToolTip": "ConsoleApp1\\Models\\Data_Block.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwYAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:03:33.757Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AD_Controlcs.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Service\\AD_Controlcs.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Service\\AD_Controlcs.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Service\\AD_Controlcs.cs",
+              "RelativeToolTip": "ConsoleApp1\\Service\\AD_Controlcs.cs",
+              "ViewState": "AgIAAB4BAAAAAAAAAADwv9YAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:03:02.446Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "Program.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Program.cs",
+              "RelativeDocumentMoniker": "ConsoleApp1\\Program.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\ConsoleApp1\\Program.cs",
+              "RelativeToolTip": "ConsoleApp1\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T15:02:15.297Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "AD_Controlcs.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\AD_Controlcs.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Service\\AD_Controlcs.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\AD_Controlcs.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Service\\AD_Controlcs.cs",
+              "ViewState": "AgIAANoBAAAAAAAAAAAAwAIAAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-13T08:40:45.651Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AvaloniaApplication1.csproj",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "RelativeToolTip": "AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAWAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-01-23T12:06:03.414Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "AvaloniaApplication1",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "RelativeToolTip": "AvaloniaApplication1\\AvaloniaApplication1.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-02-25T14:35:55.348Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "Window1.axaml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\Window1.axaml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Views\\Window1.axaml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\Window1.axaml",
+              "RelativeToolTip": "AvaloniaApplication1\\Views\\Window1.axaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-01-03T17:20:00.752Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Data_Block.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\Data_Block.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Service\\Data_Block.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\Data_Block.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Service\\Data_Block.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-24T02:00:00.715Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "ViewModelBase.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\ViewModels\\ViewModelBase.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\ViewModels\\ViewModelBase.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\ViewModels\\ViewModelBase.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\ViewModels\\ViewModelBase.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-21T09:00:17.962Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "MainWindow.axaml.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\MainWindow.axaml.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Views\\MainWindow.axaml.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\MainWindow.axaml.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Views\\MainWindow.axaml.cs",
+              "ViewState": "AgIAACIAAAAAAAAAAAAIwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-24T02:36:17.73Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "DeviceConfig.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Models\\DeviceConfig.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Models\\DeviceConfig.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Models\\DeviceConfig.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Models\\DeviceConfig.cs",
+              "ViewState": "AgIAAAsAAAAAAAAAAADwvxYAAAAWAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-03T18:29:46.369Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "MainWindowViewModel.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\ViewModels\\MainWindowViewModel.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\ViewModels\\MainWindowViewModel.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\ViewModels\\MainWindowViewModel.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\ViewModels\\MainWindowViewModel.cs",
+              "ViewState": "AgIAAAcAAAAAAAAAAAAAAEoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-03T17:20:41.136Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "Voltage_block.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\Voltage_block.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Service\\Voltage_block.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\Voltage_block.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Service\\Voltage_block.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-19T07:26:24.338Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "UI_Display.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\UI_Display.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Service\\UI_Display.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\UI_Display.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Service\\UI_Display.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-24T01:56:58.593Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "USB1602.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\USB1602.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Service\\USB1602.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Service\\USB1602.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Service\\USB1602.cs",
+              "ViewState": "AgIAAEgAAAAAAAAAAAAgwF8AAABKAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T22:53:45.51Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "Window1.axaml.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\Window1.axaml.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Views\\Window1.axaml.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\Window1.axaml.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Views\\Window1.axaml.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAQwBsAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-24T02:51:23.984Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "Program.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Program.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Program.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Program.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-13T08:53:18.087Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "FolderProfile5.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile5.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile5.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile5.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile5.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:48:03.064Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "FolderProfile10.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile10.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile10.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile10.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile10.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:51.282Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "FolderProfile11.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile11.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile11.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile11.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile11.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:52.141Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "FolderProfile2.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile2.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile2.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile2.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile2.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:53.348Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "FolderProfile3.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile3.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile3.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile3.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile3.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:53.796Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "FolderProfile4.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile4.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile4.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile4.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile4.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:48:02.504Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "FolderProfile9.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile9.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile9.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile9.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile9.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:54.976Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "FolderProfile.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:48.032Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "FolderProfile1.pubxml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile1.pubxml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile1.pubxml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile1.pubxml",
+              "RelativeToolTip": "AvaloniaApplication1\\Properties\\PublishProfiles\\FolderProfile1.pubxml",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-02-19T02:47:46.909Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "App.axaml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\App.axaml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\App.axaml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\App.axaml",
+              "RelativeToolTip": "AvaloniaApplication1\\App.axaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-01-03T17:50:42.533Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "App.axaml.cs",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\App.axaml.cs",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\App.axaml.cs",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\App.axaml.cs",
+              "RelativeToolTip": "AvaloniaApplication1\\App.axaml.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAAA8AAAAqAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-03T17:50:41.892Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "MainWindow.axaml",
+              "DocumentMoniker": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\MainWindow.axaml",
+              "RelativeDocumentMoniker": "AvaloniaApplication1\\Views\\MainWindow.axaml",
+              "ToolTip": "E:\\\u65B0\u5EFA\u6587\u4EF6\u5939 (2)\\\u6570\u636E\u5C55\u793A\\AvaloniaApplication1\\AvaloniaApplication1\\Views\\MainWindow.axaml",
+              "RelativeToolTip": "AvaloniaApplication1\\Views\\MainWindow.axaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-01-04T07:04:40.588Z"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

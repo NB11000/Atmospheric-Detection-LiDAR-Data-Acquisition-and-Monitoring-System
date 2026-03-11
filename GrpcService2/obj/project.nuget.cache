@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "DCeXJQRnjbU=",
+  "success": true,
+  "projectFilePath": "E:\\新建文件夹 (2)\\数据展示\\数据采集与检测系统V2.0\\GrpcService2\\GrpcService2.csproj",
+  "expectedPackageFiles": [
+    "D:\\.nuget\\packages\\google.protobuf\\3.23.1\\google.protobuf.3.23.1.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.aspnetcore\\2.57.0\\grpc.aspnetcore.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.aspnetcore.server\\2.57.0\\grpc.aspnetcore.server.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.aspnetcore.server.clientfactory\\2.57.0\\grpc.aspnetcore.server.clientfactory.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.core.api\\2.57.0\\grpc.core.api.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.net.client\\2.57.0\\grpc.net.client.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.net.clientfactory\\2.57.0\\grpc.net.clientfactory.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.net.common\\2.57.0\\grpc.net.common.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\grpc.tools\\2.57.0\\grpc.tools.2.57.0.nupkg.sha512",
+    "D:\\.nuget\\packages\\microsoft.dotnet.ilcompiler\\8.0.22\\microsoft.dotnet.ilcompiler.8.0.22.nupkg.sha512",
+    "D:\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.22\\microsoft.net.illink.tasks.8.0.22.nupkg.sha512",
+    "D:\\.nuget\\packages\\runtime.win-x64.microsoft.dotnet.ilcompiler\\8.0.22\\runtime.win-x64.microsoft.dotnet.ilcompiler.8.0.22.nupkg.sha512"
+  ],
+  "logs": []
+}
