@@ -527,7 +527,7 @@ namespace AvaloniaApplication1.Service
         }
 
         /// <summary>
-        /// 分析数据线程
+        /// 全量数据分析线程
         /// </summary>
         private void Analysis()
         {
