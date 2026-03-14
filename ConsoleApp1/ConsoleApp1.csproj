@@ -24,4 +24,18 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+	  <!-- 引入Proto文件并指定生成路径 -->
+      <Protobuf Include="Protos\Grpc.proto" GrpcServices="Client">
+        <!-- 指定生成代码输出到项目的Generated目录 -->
+        <OutputDir>Generated</OutputDir>
+      </Protobuf>                        
+  </ItemGroup>
+	
+
+  <ItemGroup>
+    <Folder Include="Generated\" />
+  </ItemGroup>
+  
+
 </Project>

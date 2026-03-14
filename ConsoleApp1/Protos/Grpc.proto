@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+// 包名：业务域+版本号，版本迭代时新增v2/v3包，新旧版本可共存
+package ad_acquisition.v1;
+
+// 导入扩展类型，支持传递任意结构化数据（核心扩展能力）
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+
+// C#命名空间，适配项目结构
+option csharp_namespace = "AvaloniaApplication1.Grpc";
+
+// ===================== 核心消息定义（无枚举，全字符串标识） =====================
+// 1. 主进程→子进程的请求消息（适配流式通信，支持任意命令扩展）
+message AdRequest {
+  // 【必选】请求唯一ID（UUID/自增ID），用于流式通信匹配「请求-响应」
+  string request_id = 1;
+
+  // 【必选】命令标识（字符串），命名规范：大写+下划线，如 "OPEN_DEVICE"
+  // 内置基础命令：OPEN_DEVICE / OPEN_DEVICE_AGAIN / START_AD / STOP_AD / PING / EXIT
+  // 未来新增命令直接扩展字符串值，无需修改Proto结构
+  string command = 2;
+
+  // 【可选】命令参数（结构化扩展）
+  // 示例：传递设备配置 {"device_id":"card_001", "channel":1}、采集参数 {"sample_rate":1000} 等
+  google.protobuf.Any params = 3;
+
+  // 【预留字段】10-19段预留，未来新增字段无需调整历史字段编号（保障序列化兼容）
+  reserved 10 to 19;
+}
+
+// 2. 子进程→主进程的响应消息（覆盖所有返回场景，无枚举）
+message AdResponse {
+  // 【必选】关联的请求ID，匹配AdRequest的response_id，追踪响应归属
+  string response_id = 1;
+
+  // 【必选】子进程上报消息类型标识（字符串），命名规范：大写+下划线
+  // 内置类型：READY / PONG / ERROR / RESPONSE / ACQ_STARTED / ACQ_STOPPED / UNKNOWN_COMMAND
+  // 未来新增类型直接扩展，无需修改Proto
+  string message_type = 2;
+
+  // 【可选】文本内容（错误描述、响应说明等）
+  string content = 3;
+
+  // 【可选】错误码标识（字符串），命名规范：大写+下划线
+  // 内置错误码：NONE / DEVICE_OPEN_FAILED / ACQ_START_FAILED / UNKNOWN
+  // 未来可细化为 DEVICE_OPEN_FAILED_USB / DEVICE_OPEN_FAILED_DRIVER 等
+  string error_code = 4;
+
+  // 【可选】扩展数据（结构化返回结果）
+  // 示例：返回设备状态 {"status":"online", "channel_count":4}、采集统计 {"sample_count":10000} 等
+  google.protobuf.Any data = 5;
+
+  // 【预留字段】10-19段预留
+  reserved 10 to 19;
+}
+
+// ===================== 服务定义（适配进程持续通信） =====================
+service GrpcService {
+  // 双向流式RPC：主进程持续发命令，子进程持续返回响应/心跳/错误
+  // 替代原有NetMQ的循环收发逻辑，天然适配进程间长连接通信
+  rpc Communicate (stream AdResponse) returns (stream AdRequest);
+
+  // 【可选】单向RPC（适配简单单次调用场景）
+  // 示例：单独查询设备状态，无需流式通信
+  // rpc GetDeviceStatus (google.protobuf.Empty) returns (AdResponse);
+
+  // 【预留服务方法】未来新增接口直接追加，如：
+  // rpc SetAcquisitionConfig (AdRequest) returns (AdResponse);
+  // rpc GetAcquisitionStats (AdRequest) returns (AdResponse);
+}
