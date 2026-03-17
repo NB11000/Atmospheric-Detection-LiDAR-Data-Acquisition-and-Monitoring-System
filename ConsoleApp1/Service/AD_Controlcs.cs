@@ -17,13 +17,13 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace AvaloniaApplication1.Service
+namespace ConsoleApp1.Service
 {
     /// <summary>
     /// 数据采集控制类;
     /// 四个线程: ADWork(数据采集), ADDraw(数据处理), Analysis(数据分析), UI(UI刷新);
     /// 三个通道: channel(采样数据传递), Analysischannel(数据分析), UIchannel(UI显示);
-    /// 依赖三个外部变量：1.mHandle(设备句柄); 2.Window1.CurrentConfig(当前设备配置);3.vm(MainWindow的视图模型);
+    /// 依赖两个外部变量：1.mHandle(设备句柄); 2.DeviceConfig(当前设备配置);
     /// </summary>
     public class AD_Controlcs
     {
