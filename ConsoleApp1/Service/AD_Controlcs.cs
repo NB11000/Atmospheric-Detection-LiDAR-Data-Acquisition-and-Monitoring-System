@@ -727,29 +727,42 @@ namespace ConsoleApp1.Service
             //iResult = XCDotNETAPI.USB1602.USB1602_ADStart(mHandle);
 
             //Control.CheckForIllegalCrossThreadCalls = false;
-            s1 = new Thread(ADWork);
-            s1.Name = "AD数据采集线程";
-            s1.IsBackground = true;
+
+            s1 = new Thread(ADWork)
+            {
+                Name = "AD数据采集线程", // 便于调试
+                Priority = ThreadPriority.Highest, // 关键：设置最高优先级
+                IsBackground = true, // 后台线程，不阻塞程序退出
+            };
             AllThread.Add(s1);
             s1.Start();
 
-            s2 = new Thread(ADDraw);
-            s2.Name = "AD数据处理线程";
-            s2.IsBackground = true;
+            s2 = new Thread(ADDraw)
+            {
+                Name = "AD数据处理线程", // 便于调试
+                Priority = ThreadPriority.Highest, // 关键：设置最高优先级
+                IsBackground = true, // 后台线程，不阻塞程序退出
+            };
             AllThread.Add(s2);
             s2.Start();
 
-            s3 = new Thread(Analysis);
-            s3.Name = "分析数据线程";
-            s3.IsBackground = true;
+            s3 = new Thread(Analysis)
+            {
+                Name = "分析数据线程", // 便于调试
+                Priority = ThreadPriority.Highest, // 关键：设置最高优先级
+                IsBackground = true, // 后台线程，不阻塞程序退出
+            };
             AllThread.Add(s3);
             s3.Start();
 
             //UI刷新可以交由UI线程控制，而非后台线程
             //此线程特殊，要单独控制
-            s4 = new Thread(UI);
-            s4.Name = "UI刷新线程";
-            s4.IsBackground = true;
+            s4 = new Thread(UI)
+            {
+                Name = "UI刷新线程", // 便于调试
+                Priority = ThreadPriority.Highest, // 关键：设置最高优先级
+                IsBackground = true, // 后台线程，不阻塞程序退出
+            };
             AllThread.Add(s4);                                                                                                  
             s4.Start();
         }

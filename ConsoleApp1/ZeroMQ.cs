@@ -38,7 +38,7 @@ namespace ConsoleApp1
         /// (主线程)子进程通信线程()；
         /// 用于接受主进程的调用命令，并反馈结果
         /// </summary>
-        static void Main(string[] args)
+        static void aain(string[] args)
         {
             // 校验参数（确保传入了完整的ZeroMQ地址）
             if (args.Length == 0 || !args[0].StartsWith("tcp://"))

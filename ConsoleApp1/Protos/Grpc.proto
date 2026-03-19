@@ -51,6 +51,9 @@ message AdResponse {
   // 示例：返回设备状态 {"status":"online", "channel_count":4}、采集统计 {"sample_count":10000} 等
   google.protobuf.Any data = 5;
 
+  //客户端进程ID
+  string processId = 6;
+
   // 【预留字段】10-19段预留
   reserved 10 to 19;
 }

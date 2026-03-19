@@ -4,14 +4,16 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Microsoft.Extensions.ObjectPool;
 using NetMQ;
 using System;
+using System.Diagnostics;
 using System.Net.Sockets;
+using System.Reflection.Metadata;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.ObjectPool;
-using System.Diagnostics;
 
 namespace ConsoleApp1.Service
 {
@@ -35,7 +37,7 @@ namespace ConsoleApp1.Service
         /// <summary>
         /// 客户端/设备唯一标识（与服务端的deviceId对应）
         /// </summary>
-        private readonly string _deviceId;
+        private readonly string _processId;
 
         /// <summary>
         /// 双向流的响应写入器（客户端→服务端发送消息）
@@ -62,13 +64,13 @@ namespace ConsoleApp1.Service
         /// 构造函数：初始化通道和客户端,并注入数据采集控制器
         /// </summary>
         /// <param name="serverAddress">服务端地址（如http://localhost:5000）</param>
-        /// <param name="deviceId">客户端唯一标识（需与服务端匹配）</param>
-        public GrpcClient(string serverAddress, string deviceId, AD_Controlcs Controlcs)
+        /// <param name="processId">客户端唯一标识（需与服务端匹配）</param>
+        public GrpcClient(string serverAddress, string processId, AD_Controlcs Controlcs)
         {
             // 创建gRPC通道（默认HTTP/2，适配双向流）
             channel = GrpcChannel.ForAddress(serverAddress);
             client = new GrpcService.GrpcServiceClient(channel);
-            _deviceId = deviceId;
+            _processId = processId;
             // 注入数据采集控制器
             aD_Controlcs = Controlcs;
         }
@@ -95,30 +97,33 @@ namespace ConsoleApp1.Service
                     {
                         // 获取服务端发送的指令
                         var serverCommand = stream.ResponseStream.Current;
-                        Debug.WriteLine($"客户端[{_deviceId}]收到服务端指令：RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
+                        Debug.WriteLine($"客户端[{_processId}]收到服务端指令：RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
 
                         // 4. 处理指令并返回响应
                         await HandleServerCommandAsync(serverCommand);
                     }
                 }, _cts.Token);
-                 
-                // 5. 启动心跳上报（可选：客户端主动向服务端发送心跳）
-                var heartbeatTask = SendHeartbeatAsync(_cts.Token);
+
+                // 4. 先发生准备完成消息，传递子进程ID
+                await SendMessageAsync("子进程准备完毕");
+
+                // 5. 启动心跳上报异步任务（可选：客户端主动向服务端发送心跳）
+                var heartbeatTask = Task.Run(() => SendHeartbeatAsync(_cts.Token));
 
                 // 等待任务完成（或被取消）
                 await Task.WhenAll(readTask, heartbeatTask);
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine($"客户端[{_deviceId}]连接已取消");
+                Debug.WriteLine($"客户端[{_processId}]连接已取消");
             }
             catch (RpcException ex)
             {
-                Debug.WriteLine($"客户端[{_deviceId}]gRPC连接异常：{ex.Status.Detail}");
+                Debug.WriteLine($"客户端[{_processId}]gRPC连接异常：{ex.Status.Detail}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"客户端[{_deviceId}]异常：{ex.Message}");
+                Debug.WriteLine($"客户端[{_processId}]异常：{ex.Message}");
             }
         }
 
@@ -134,6 +139,7 @@ namespace ConsoleApp1.Service
             response.MessageType = "command_response";// 标记为指令响应（与服务端逻辑匹配）
             response.ErrorCode = "NONE";// 默认无错误
             response.Content = string.Empty;
+            response.ProcessId = _processId; // 进程ID
 
             try
             {
@@ -192,7 +198,7 @@ namespace ConsoleApp1.Service
                         await _responseStreamWriter.WriteAsync(response);
                         Debug.WriteLine("已向服务端发送退出确认响应");
                         // 触发gRPC任务取消和通道关闭
-                        await StopAsync();
+                        Stop();
                         break;
 
                     // 未知命令
@@ -213,10 +219,11 @@ namespace ConsoleApp1.Service
 
             // 发送响应到服务端
             await _responseStreamWriter.WriteAsync(response);
+            ResponsePool.Return(response);
         }
 
         // 复用StringBuilder，避免频繁拼接
-        private readonly StringBuilder _sb = new();
+        private static readonly StringBuilder sb1 = new();
         /// <summary>
         /// 客户端主动上报心跳（示例：每5秒上报一次）
         /// </summary>
@@ -229,19 +236,20 @@ namespace ConsoleApp1.Service
                 try
                 {
                     // 复用字符串拼接
-                    _sb.Clear();
-                    _sb.Append("客户端[").Append(_deviceId).Append("]心跳 - ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                    var heartbeat = new AdResponse
-                    {
-                        ResponseId = Guid.NewGuid().ToString("N"), // 随机ID
-                        MessageType = "data_report", // 标记为数据上报（与服务端逻辑匹配）
-                        Content = _sb.ToString(),
-                        ErrorCode = "NONE"
-                    };
+                    sb1.Clear();
+                    sb1.Append("客户端[").Append(_processId).Append("]心跳 - ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                    var heartbeat = ResponsePool.Get();
+                    heartbeat.ResponseId = Guid.NewGuid().ToString("N");// 随机ID
+                    heartbeat.MessageType = "data_report";// 标记为数据上报（与服务端逻辑匹配）
+                    heartbeat.ErrorCode = "NONE";// 默认无错误
+                    heartbeat.Content = sb1.ToString();
+                    heartbeat.ProcessId = _processId; // 进程ID
 
                     // 发送心跳到服务端
                     await _responseStreamWriter.WriteAsync(heartbeat);
-                    await Task.Delay(5000, cancellationToken); // 5秒间隔
+                    ResponsePool.Return(heartbeat);
+                    Task.Delay(5000, cancellationToken).Wait(); // 5秒间隔
                 }
                 catch (OperationCanceledException)
                 {
@@ -255,6 +263,9 @@ namespace ConsoleApp1.Service
             }
         }
 
+
+        // 复用StringBuilder，避免频繁拼接
+        private static readonly StringBuilder sb2 = new();
         /// <summary>
         /// 客户端主动上报消息
         /// </summary>
@@ -264,16 +275,20 @@ namespace ConsoleApp1.Service
         {
             try
             {
-                var heartbeat = new AdResponse
-                {
-                    ResponseId = Guid.NewGuid().ToString("N"), // 随机ID
-                    MessageType = "data_report", // 标记为数据上报（与服务端逻辑匹配）
-                    Content = $"客户端[{_deviceId}]消息 - {message}",
-                    ErrorCode = "NONE"
-                };
+                // 复用字符串拼接
+                sb2.Clear();
+                sb2.Append("客户端[").Append(_processId).Append("]消息 -").Append(message);
+
+                var heartbeat = ResponsePool.Get();
+                heartbeat.ResponseId = Guid.NewGuid().ToString("N"); // 随机ID
+                heartbeat.MessageType = "data_report"; // 标记为数据上报（与服务端逻辑匹配）
+                heartbeat.Content = sb2.ToString();
+                heartbeat.ErrorCode = "NONE";
+                heartbeat.ProcessId = _processId;
 
                 // 发送心跳到服务端
                 await _responseStreamWriter.WriteAsync(heartbeat);
+                ResponsePool.Return(heartbeat);
             }
             catch (Exception ex)
             {
@@ -281,6 +296,9 @@ namespace ConsoleApp1.Service
             }
         }
 
+
+        // 复用StringBuilder，避免频繁拼接
+        private static readonly StringBuilder sb3 = new();
         /// <summary>
         /// 客户端主动上报错误消息
         /// </summary>
@@ -290,16 +308,21 @@ namespace ConsoleApp1.Service
         {
             try
             {
-                var heartbeat = new AdResponse
-                {
-                    ResponseId = Guid.NewGuid().ToString("N"), // 随机ID
-                    MessageType = "Error", // 标记为数据上报（与服务端逻辑匹配）
-                    Content = $"客户端[{_deviceId}]错误消息 - {message}",
-                    ErrorCode = "NONE"
-                };
+                // 复用字符串拼接
+                sb3.Clear();
+                sb3.Append("客户端[").Append(_processId).Append("]错误消息 -").Append(message);
+
+                var heartbeat = ResponsePool.Get();
+
+                heartbeat.ResponseId = Guid.NewGuid().ToString("N"); // 随机ID
+                heartbeat.MessageType = "Error";// 标记为数据上报（与服务端逻辑匹配）
+                heartbeat.Content = sb3.ToString();
+                heartbeat.ErrorCode = "NONE";
+                heartbeat.ProcessId = _processId;
 
                 // 发送心跳到服务端
                 await _responseStreamWriter.WriteAsync(heartbeat);
+                ResponsePool.Return(heartbeat);
             }
             catch (Exception ex)
             {
@@ -310,12 +333,13 @@ namespace ConsoleApp1.Service
         /// <summary>
         /// 停止客户端：取消令牌，关闭通道
         /// </summary>
-        /// <returns>异步任务</returns>
-        public async Task StopAsync()
+        /// <returns></returns>
+        public void Stop()
         {
             _cts.Cancel(); // 取消所有异步任务
-            await channel.ShutdownAsync(); // 关闭gRPC通道
-            Debug.WriteLine($"客户端[{_deviceId}]已停止");
+            Task.Delay(1000).Wait();
+            channel.ShutdownAsync().Wait(); // 关闭gRPC通道
+            Debug.WriteLine($"客户端[{_processId}]已停止");
         }
 
         /// <summary>
@@ -336,7 +360,7 @@ namespace ConsoleApp1.Service
             await SendMessageAsync("EXIT_OK");
             Debug.WriteLine("已向服务端发送退出确认响应");
             // 触发gRPC任务取消和通道关闭
-            await StopAsync();
+            Stop();
             Dispose();
         }
 
@@ -373,7 +397,8 @@ namespace ConsoleApp1.Service
                 ResponseId = string.Empty,
                 MessageType = string.Empty,
                 ErrorCode = "NONE", // 默认无错误
-                Content = string.Empty
+                Content = string.Empty,
+                ProcessId = string.Empty
             };
         }
 
@@ -392,6 +417,7 @@ namespace ConsoleApp1.Service
             obj.MessageType = string.Empty;
             obj.ErrorCode = "NONE";
             obj.Content = string.Empty;
+            obj.ProcessId = string.Empty;
 
             return true; // 允许回收至对象池
         }

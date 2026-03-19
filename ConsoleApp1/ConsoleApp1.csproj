@@ -6,6 +6,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	  <!-- 核心：显式开启自包含（独立应用） -->
+	  <SelfContained>true</SelfContained>
+	  <!-- 必加：包含本机库-->
+	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	  <!--  AOT  -->
+	  <PublishAot>true</PublishAot>
+	  <!-- 每个CPU核心独立GC堆，缩短STW -->
+	  <ServerGarbageCollection>true</ServerGarbageCollection>
+	  <!-- 后台并发回收，减少STW时长 -->
+	  <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,7 +42,7 @@
         <OutputDir>Generated</OutputDir>
       </Protobuf>                        
   </ItemGroup>
-	
+
 
   <ItemGroup>
     <Folder Include="Generated\" />
