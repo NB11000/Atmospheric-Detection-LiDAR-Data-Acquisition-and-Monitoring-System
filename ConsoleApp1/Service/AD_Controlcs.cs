@@ -125,7 +125,7 @@ namespace ConsoleApp1.Service
         private void CreateNewDataChannel()
         {
             // 采样数据传递通道
-            channel = Channel.CreateBounded<Data_Block>(new BoundedChannelOptions(32)
+            channel = Channel.CreateBounded<Data_Block>(new BoundedChannelOptions(64)
             {
                 FullMode = BoundedChannelFullMode.DropOldest, // 或 Wait
                 SingleWriter = true,
@@ -141,7 +141,7 @@ namespace ConsoleApp1.Service
             );
 
             // 数据分析通道
-            Analysischannel = Channel.CreateBounded<Voltage_block>(new BoundedChannelOptions(32)
+            Analysischannel = Channel.CreateBounded<Voltage_block>(new BoundedChannelOptions(64)
             {
                 FullMode = BoundedChannelFullMode.DropOldest, // 或 Wait
                 SingleWriter = true,
@@ -318,7 +318,7 @@ namespace ConsoleApp1.Service
                 ADDataTest_RunFlag = false;
                 cts.Cancel();  // 触发所有等待操作取消
                 init();//系统初始化
-                Errorchannel.Writer.TryWrite("AD采集线程出现异常: " + ex.Message);
+                GrpcClient.SendErrorMessage("AD采集线程出现异常: " + ex.Message);
             }
         }
 
@@ -519,7 +519,7 @@ namespace ConsoleApp1.Service
                 ADDataTest_RunFlag = false;
                 cts.Cancel();  // 触发所有等待操作取消
                 init();//系统初始化
-                Errorchannel.Writer.TryWrite("AD数据处理线程出现异常: " + ex.Message);
+                GrpcClient.SendErrorMessage("AD数据处理线程出现异常: " + ex.Message);
                 // 处理完数据后归还数组
                 if (block.Buffer != null)
                     ArrayPool<byte>.Shared.Return(block.Buffer);
@@ -570,7 +570,7 @@ namespace ConsoleApp1.Service
                 ADDataTest_RunFlag = false;
                 cts.Cancel();  // 触发所有等待操作取消
                 init();//系统初始化
-                Errorchannel.Writer.TryWrite("分析数据线程出现异常: " + ex.Message);
+                GrpcClient.SendErrorMessage("分析数据线程出现异常: " + ex.Message);
                 // 处理完数据后归还数组
                 if (voltageBlock.Voltage1 != null)
                     ArrayPool<double>.Shared.Return(voltageBlock.Voltage1);
@@ -659,7 +659,7 @@ namespace ConsoleApp1.Service
                 ADDataTest_RunFlag = false;
                 cts.Cancel();  // 触发所有等待操作取消
                 init();//系统初始化
-                Errorchannel.Writer.TryWrite("UI刷新线程出现异常: " + ex.Message);
+                GrpcClient.SendErrorMessage("UI刷新线程出现异常: " + ex.Message);
                 // 处理完数据后归还数组
                 if (UIDisplay.Voltage1 != null)
                     ArrayPool<double>.Shared.Return(UIDisplay.Voltage1);

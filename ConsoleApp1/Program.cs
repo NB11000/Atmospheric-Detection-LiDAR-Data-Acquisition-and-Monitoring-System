@@ -1,5 +1,6 @@
 ﻿using ConsoleApp1.Service;
 using ConsoleApp1.Tools;
+using Microsoft.Extensions.Logging;
 using NetMQ;
 using NetMQ.Sockets;
 using System;
@@ -18,6 +19,7 @@ using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
+
 namespace ConsoleApp1
 {
     class Program
@@ -32,6 +34,7 @@ namespace ConsoleApp1
 
         private static string GrpcAddress;
         private static volatile bool True_False = true;
+
 
         /// <summary>
         /// 客户端入口（控制台/UI程序均可）
@@ -48,7 +51,7 @@ namespace ConsoleApp1
                     var status = GC.WaitForFullGCApproach();
                     if (status == GCNotificationStatus.Succeeded)
                     {
-                        Debug.WriteLine("GC信息: Full GC 即将触发");
+                        Console.WriteLine("GC信息: Full GC 即将触发");
                     }
                     Task.Delay(100).Wait();
                 }
@@ -58,12 +61,12 @@ namespace ConsoleApp1
                 // 校验参数（确保传入了完整的ZeroMQ地址）
                 if (args.Length == 0 || !args[0].StartsWith("https://"))
                 {
-                    Debug.WriteLine("错误：未获取到有效的ZeroMQ连接地址（格式：https://IP:Port）");
+                    Console.WriteLine("错误：未获取到有效的ZeroMQ连接地址（格式：https://IP:Port）");
                     return;
                 }
                 // 直接读取完整的连接地址（无解析，零GC）
                 GrpcAddress = args[0];
-                Debug.WriteLine(GrpcAddress);
+                Console.WriteLine(GrpcAddress);
 
                 //GrpcAddress = "https://localhost:10000";
 
@@ -71,7 +74,7 @@ namespace ConsoleApp1
                 var client = new GrpcClient(GrpcAddress, "数据采集子进程", aD_Controlcs);
 
                 // 2. 启动客户端（建立双向流连接）
-                // 阻塞主线程（避免程序退出）
+                // 阻塞程序（避免程序退出）
                 await client.StartAsync();
 
                 // 3. 释放资源，子进程退出
@@ -80,7 +83,7 @@ namespace ConsoleApp1
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
+                Console.WriteLine(ex);
             }
            
         }
@@ -88,3 +91,13 @@ namespace ConsoleApp1
       
     }
 }
+
+
+
+
+
+
+
+
+
+

@@ -7,6 +7,7 @@ using Grpc.Net.Client;
 using Microsoft.Extensions.ObjectPool;
 using NetMQ;
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Reflection.Metadata;
@@ -37,7 +38,7 @@ namespace ConsoleApp1.Service
         /// <summary>
         /// 客户端/设备唯一标识（与服务端的deviceId对应）
         /// </summary>
-        private readonly string _processId;
+        private static string _processId;
 
         /// <summary>
         /// 双向流的响应写入器（客户端→服务端发送消息）
@@ -59,6 +60,11 @@ namespace ConsoleApp1.Service
         /// </summary>
         private static readonly ObjectPool<AdResponse> ResponsePool =
             new DefaultObjectPool<AdResponse>(new AdResponsePoolPolicy(), 30);
+
+        /// <summary>
+        /// 主动/被动响应 消息发送队列
+        /// </summary>
+        private static readonly ConcurrentQueue<AdResponse> ResponseQueue = new ConcurrentQueue<AdResponse>();
 
         /// <summary>
         /// 构造函数：初始化通道和客户端,并注入数据采集控制器
@@ -89,41 +95,58 @@ namespace ConsoleApp1.Service
                 // 2. 保存客户端→服务端的响应写入器（用于发送响应/上报）
                 _responseStreamWriter = stream.RequestStream;
 
-                // 3. 启动异步任务：持续读取服务端下发的指令（服务端→客户端）
-                var readTask = Task.Run(async () =>
+                // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
+                var sendResponse = Task.Run(() =>
                 {
-                    // 循环读取服务端的指令流（服务端断开前持续监听）
-                    while (await stream.ResponseStream.MoveNext(_cts.Token))
+                    AdResponse response = null;
+                    while (!_cts.Token.IsCancellationRequested)
                     {
-                        // 获取服务端发送的指令
-                        var serverCommand = stream.ResponseStream.Current;
-                        Debug.WriteLine($"客户端[{_processId}]收到服务端指令：RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
-
-                        // 4. 处理指令并返回响应
-                        await HandleServerCommandAsync(serverCommand);
+                        Thread.Sleep(10);
+                        if(ResponseQueue.TryDequeue(out response) && response!=null)
+                        {
+                            //同步阻塞减少线程池调度
+                            _responseStreamWriter.WriteAsync(response).Wait();
+                            ResponsePool.Return(response);
+                        }
                     }
                 }, _cts.Token);
 
-                // 4. 先发生准备完成消息，传递子进程ID
-                await SendMessageAsync("子进程准备完毕");
+                // 3. 启动后台任务：持续读取服务端下发的指令（服务端→客户端）
+                var readTask = Task.Run(() =>
+                {
+                    // 循环读取服务端的指令流（服务端断开前持续监听）
+                    while (stream.ResponseStream.MoveNext(_cts.Token).GetAwaiter().GetResult())
+                    {
+                        // 获取服务端发送的指令
+                        var serverCommand = stream.ResponseStream.Current;
+                        Console.WriteLine($"客户端[{_processId}]收到服务端指令：RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
 
-                // 5. 启动心跳上报异步任务（可选：客户端主动向服务端发送心跳）
-                var heartbeatTask = Task.Run(() => SendHeartbeatAsync(_cts.Token));
+                        // 4. 处理指令并返回响应
+                        HandleServerCommand(serverCommand);
+                    }
+                }, _cts.Token);
+
+
+                // 4. 先发生准备完成消息，传递子进程ID
+                SendMessage("子进程准备完毕");
+
+                // 5. 启动心跳上报后台任务（可选：客户端主动向服务端发送心跳）
+                var heartbeatTask = Task.Run(() => SendHeartbeat(_cts.Token));
 
                 // 等待任务完成（或被取消）
-                await Task.WhenAll(readTask, heartbeatTask);
+                await Task.WhenAll(readTask, heartbeatTask, sendResponse);
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine($"客户端[{_processId}]连接已取消");
+                Console.WriteLine($"客户端[{_processId}]连接已取消");
             }
             catch (RpcException ex)
             {
-                Debug.WriteLine($"客户端[{_processId}]gRPC连接异常：{ex.Status.Detail}");
+                Console.WriteLine($"客户端[{_processId}]gRPC连接异常：{ex.Status.Detail}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"客户端[{_processId}]异常：{ex.Message}");
+                Console.WriteLine($"客户端[{_processId}]异常：{ex.Message}");
             }
         }
 
@@ -132,7 +155,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         /// <param name="request">服务端指令</param>
         /// <returns>异步任务</returns>
-        private async Task HandleServerCommandAsync(AdRequest request)
+        private void HandleServerCommand(AdRequest request)
         {
             var response = ResponsePool.Get();
             response.ResponseId = request.RequestId;// 关联服务端指令的RequestId
@@ -151,14 +174,14 @@ namespace ConsoleApp1.Service
                     case "OPEN_DEVICE":
 
                         response.Content = aD_Controlcs.Device_Opened();
-                        Debug.WriteLine(response.Content);
+                        Console.WriteLine(response.Content);
                         break;
 
                     // 重新打开采集卡
                     case "OPEN_DEVICE_AGAIN":
 
                         response.Content = aD_Controlcs.Device_Opened_again();
-                        Debug.WriteLine(response.Content);
+                        Console.WriteLine(response.Content);
                         break;
 
                     // 开始采集
@@ -184,19 +207,19 @@ namespace ConsoleApp1.Service
                     // 主进程要求退出
                     case "EXIT":
 
-                        Debug.WriteLine("收到退出指令，开始优雅退出流程...");
+                        Console.WriteLine("收到退出指令，开始优雅退出流程...");
                         // 停止数据采集（确保采集卡停止工作）
                         if (aD_Controlcs.mHandle >= 0)
                         {
                             aD_Controlcs.stop(); // 停止采集
                             USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
-                            Debug.WriteLine("采集卡资源已释放");
+                            Console.WriteLine("采集卡资源已释放");
                         }
 
                         // 向服务端发送退出确认响应（确保服务端收到）
                         response.Content = "EXIT_OK";
-                        await _responseStreamWriter.WriteAsync(response);
-                        Debug.WriteLine("已向服务端发送退出确认响应");
+                        ResponseQueue.Enqueue(response);
+                        Console.WriteLine("已向服务端发送退出确认响应");
                         // 触发gRPC任务取消和通道关闭
                         Stop();
                         break;
@@ -217,9 +240,9 @@ namespace ConsoleApp1.Service
                 response.Content = $"指令处理失败：{ex.Message}";
             }
 
-            // 发送响应到服务端
-            await _responseStreamWriter.WriteAsync(response);
-            ResponsePool.Return(response);
+            // 发送响应到消息队列
+            ResponseQueue.Enqueue(response);
+
         }
 
         // 复用StringBuilder，避免频繁拼接
@@ -229,7 +252,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>异步任务</returns>
-        private async Task SendHeartbeatAsync(CancellationToken cancellationToken)
+        private void SendHeartbeat(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -246,9 +269,8 @@ namespace ConsoleApp1.Service
                     heartbeat.Content = sb1.ToString();
                     heartbeat.ProcessId = _processId; // 进程ID
 
-                    // 发送心跳到服务端
-                    await _responseStreamWriter.WriteAsync(heartbeat);
-                    ResponsePool.Return(heartbeat);
+                    // 发送心跳到消息队列
+                    ResponseQueue.Enqueue(heartbeat);
                     Task.Delay(5000, cancellationToken).Wait(); // 5秒间隔
                 }
                 catch (OperationCanceledException)
@@ -257,8 +279,8 @@ namespace ConsoleApp1.Service
                 }   
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"心跳上报失败：{ex.Message}");
-                    await Task.Delay(1000, cancellationToken); // 失败后重试间隔
+                    Console.WriteLine($"心跳上报失败：{ex.Message}");
+                    Task.Delay(1000, cancellationToken).Wait(); // 失败后重试间隔
                 }
             }
         }
@@ -271,7 +293,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         /// <param name="message">消息内容</param>
         /// <returns></returns>
-        public async Task SendMessageAsync(string message)
+        public static void SendMessage(string message)
         {
             try
             {
@@ -286,13 +308,12 @@ namespace ConsoleApp1.Service
                 heartbeat.ErrorCode = "NONE";
                 heartbeat.ProcessId = _processId;
 
-                // 发送心跳到服务端
-                await _responseStreamWriter.WriteAsync(heartbeat);
-                ResponsePool.Return(heartbeat);
+                // 发送主动上报消息到消息队列
+                ResponseQueue.Enqueue(heartbeat);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"错误：{ex.Message}");
+                Console.WriteLine($"错误：{ex.Message}");
             }
         }
 
@@ -304,7 +325,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task SendErrorMessageAsync(string message)
+        public static void SendErrorMessage(string message)
         {
             try
             {
@@ -320,13 +341,13 @@ namespace ConsoleApp1.Service
                 heartbeat.ErrorCode = "NONE";
                 heartbeat.ProcessId = _processId;
 
-                // 发送心跳到服务端
-                await _responseStreamWriter.WriteAsync(heartbeat);
-                ResponsePool.Return(heartbeat);
+                // 发送错误消息到消息队列
+                ResponseQueue.Enqueue(heartbeat);
+
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"错误：{ex.Message}");
+                Console.WriteLine($"错误：{ex.Message}");
             }
         }
 
@@ -339,26 +360,26 @@ namespace ConsoleApp1.Service
             _cts.Cancel(); // 取消所有异步任务
             Task.Delay(1000).Wait();
             channel.ShutdownAsync().Wait(); // 关闭gRPC通道
-            Debug.WriteLine($"客户端[{_processId}]已停止");
+            Console.WriteLine($"客户端[{_processId}]已停止");
         }
 
         /// <summary>
         /// 新增：外部触发退出（可选）
         /// </summary>
         /// <returns></returns>
-        public async Task ExitGracefullyAsync()
+        public void ExitGracefully()
         {
-            Debug.WriteLine("收到退出指令，开始优雅退出流程...");
+            Console.WriteLine("收到退出指令，开始优雅退出流程...");
             // 停止数据采集（确保采集卡停止工作）
             if (aD_Controlcs.mHandle >= 0)
             {
                 aD_Controlcs.stop(); // 停止采集
                 USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
-                Debug.WriteLine("采集卡资源已释放");
+                Console.WriteLine("采集卡资源已释放");
             }
             // 向服务端发送退出确认响应（确保服务端收到）
-            await SendMessageAsync("EXIT_OK");
-            Debug.WriteLine("已向服务端发送退出确认响应");
+            SendMessage("EXIT_OK");
+            Console.WriteLine("已向服务端发送退出确认响应");
             // 触发gRPC任务取消和通道关闭
             Stop();
             Dispose();
