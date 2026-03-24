@@ -396,7 +396,7 @@ namespace ConsoleApp1.Service
                     //{
                     //    break; // 正常退出
                     //}
-                    while (true)
+                    while (ADDataTest_RunFlag)
                     {
                         // 先Peek检查是否有数据
                         if (channel.Reader.TryPeek(out var item))
@@ -559,7 +559,7 @@ namespace ConsoleApp1.Service
                     //    break; // 正常退出
                     //}
 
-                    while (true)
+                    while (ADDataTest_RunFlag)
                     {
                         // 先Peek检查是否有数据
                         if (Analysischannel.Reader.TryPeek(out var item))
@@ -618,25 +618,8 @@ namespace ConsoleApp1.Service
             {
                 while (ADDataTest_RunFlag)
                 {
-                    //try
-                    //{
-                    //    //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
-                    //    UIDisplay = UIchannel.Reader.ReadAsync(cts.Token)
-                    //                          .AsTask()
-                    //                          .GetAwaiter()
-                    //                          .GetResult();
-                    //    if (UIDisplay.Voltage1 != null)
-                    //        ch1= true;
-                    //    if (UIDisplay.Voltage2 != null)
-                    //        ch2= true;
 
-                    //}
-                    //catch (OperationCanceledException)
-                    //{
-                    //    break; // 正常退出
-                    //}
-
-                    while (true)
+                    while (ADDataTest_RunFlag)
                     {
                         // 先Peek检查是否有数据
                         if (UIchannel.Reader.TryPeek(out var item))
