@@ -1,9 +1,13 @@
 ﻿using AvaloniaApplication1.Grpc; // 生成的gRPC客户端代码命名空间
+using ConsoleApp1.Models;
 using ConsoleApp1.Tools;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Grpc.Net.Client.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using NetMQ;
 using System;
@@ -11,6 +15,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Reflection.Metadata;
+using System.Runtime.InteropServices;
 using System.ServiceModel.Channels;
 using System.Text;
 using System.Threading;
@@ -21,6 +26,7 @@ namespace ConsoleApp1.Service
     /// <summary>
     /// gRPC双向流客户端
     /// 核心：建立与服务端的双向流连接，处理服务端指令，返回响应，支持主动上报
+    /// 主要的GC开销是，服务端请求消息的一次性对象，和字符串创建
     /// </summary>
     public class GrpcClient : IDisposable
     {
@@ -65,6 +71,11 @@ namespace ConsoleApp1.Service
         /// 主动/被动响应 消息发送队列
         /// </summary>
         private static readonly ConcurrentQueue<AdResponse> ResponseQueue = new ConcurrentQueue<AdResponse>();
+
+        //// 定义类级别的复用对象（仅创建1次）
+        //private readonly AdRequest _reusableCommand = new AdRequest();
+        //// GRPC 生成的消息解析器（提前初始化）
+        //private readonly MessageParser<AdRequest> _commandParser = AdRequest.Parser;
 
         /// <summary>
         /// 构造函数：初始化通道和客户端,并注入数据采集控制器
@@ -119,16 +130,19 @@ namespace ConsoleApp1.Service
                     {
                         // 获取服务端发送的指令
                         var serverCommand = stream.ResponseStream.Current;
-                        Console.WriteLine($"客户端[{_processId}]收到服务端指令：RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
-
+                        Program.logger.LogInformation($"客户端[{_processId}]收到服务端指令：" +
+                            $"RequestId={serverCommand.RequestId}, Command={serverCommand.Command}");
                         // 4. 处理指令并返回响应
                         HandleServerCommand(serverCommand);
                     }
+
                 }, _cts.Token);
 
 
                 // 4. 先发生准备完成消息，传递子进程ID
                 SendMessage("子进程准备完毕");
+
+                // 请求配置文件路径
 
                 // 5. 启动心跳上报后台任务（可选：客户端主动向服务端发送心跳）
                 var heartbeatTask = Task.Run(() => SendHeartbeat(_cts.Token));
@@ -138,15 +152,15 @@ namespace ConsoleApp1.Service
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine($"客户端[{_processId}]连接已取消");
+                Program.logger.LogInformation($"客户端[{_processId}]连接已取消");
             }
             catch (RpcException ex)
             {
-                Console.WriteLine($"客户端[{_processId}]gRPC连接异常：{ex.Status.Detail}");
+                Program.logger.LogInformation($"客户端[{_processId}]gRPC连接异常：{ex.Status.Detail}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"客户端[{_processId}]异常：{ex.Message}");
+                Program.logger.LogInformation($"客户端[{_processId}]异常：{ex.Message}");
             }
         }
 
@@ -173,15 +187,19 @@ namespace ConsoleApp1.Service
                     // 打开采集卡
                     case "OPEN_DEVICE":
 
+                        Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
                         response.Content = aD_Controlcs.Device_Opened();
-                        Console.WriteLine(response.Content);
+                        response.MHandle = aD_Controlcs.mHandle;
+                        Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
                         break;
 
                     // 重新打开采集卡
                     case "OPEN_DEVICE_AGAIN":
 
+                        Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
                         response.Content = aD_Controlcs.Device_Opened_again();
-                        Console.WriteLine(response.Content);
+                        response.MHandle = aD_Controlcs.mHandle;
+                        Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
                         break;
 
                     // 开始采集
@@ -189,6 +207,7 @@ namespace ConsoleApp1.Service
 
                         aD_Controlcs.start();
                         response.Content = "AD_STARTED";
+                        Program.logger.LogInformation($"AD_STARTED");
                         break;
 
                     // 停止采集
@@ -196,39 +215,52 @@ namespace ConsoleApp1.Service
 
                         aD_Controlcs.stop();
                         response.Content = "AD_STOPPED";
+                        Program.logger.LogInformation("AD_STOPPED");
                         break;
 
                     // 主进程发送心跳检测
                     case "PING":
                         // 回复心跳
                         response.Content = "PONG";
+                        Program.logger.LogInformation("PONG");
                         break;
 
                     // 主进程要求退出
                     case "EXIT":
 
-                        Console.WriteLine("收到退出指令，开始优雅退出流程...");
+                        Program.logger.LogInformation("收到退出指令，开始优雅退出流程...");
                         // 停止数据采集（确保采集卡停止工作）
                         if (aD_Controlcs.mHandle >= 0)
                         {
                             aD_Controlcs.stop(); // 停止采集
                             USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
-                            Console.WriteLine("采集卡资源已释放");
+                            Program.logger.LogInformation("采集卡资源已释放");
                         }
 
                         // 向服务端发送退出确认响应（确保服务端收到）
                         response.Content = "EXIT_OK";
                         ResponseQueue.Enqueue(response);
-                        Console.WriteLine("已向服务端发送退出确认响应");
+                        Program.logger.LogInformation("已向服务端发送退出确认响应");
                         // 触发gRPC任务取消和通道关闭
                         Stop();
                         break;
+
+                    // 主进程修改配置通知
+                    case "CONFIG":
+
+                        //读取配置
+                        Program.Config.ReadDeviceConfig();
+                        Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
+                        break;
+
 
                     // 未知命令
                     default:
 
                         response.Content = "UNKNOWN_COMMAND";
+                        Program.logger.LogInformation("UNKNOWN_COMMAND");
                         break;
+
 
                 }
             }
@@ -279,7 +311,7 @@ namespace ConsoleApp1.Service
                 }   
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"心跳上报失败：{ex.Message}");
+                    Program.logger.LogInformation($"心跳上报失败：{ex.Message}");
                     Task.Delay(1000, cancellationToken).Wait(); // 失败后重试间隔
                 }
             }
@@ -313,7 +345,7 @@ namespace ConsoleApp1.Service
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"错误：{ex.Message}");
+                Program.logger.LogInformation($"错误：{ex.Message}");
             }
         }
 
@@ -347,7 +379,7 @@ namespace ConsoleApp1.Service
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"错误：{ex.Message}");
+                Program.logger.LogInformation($"错误：{ex.Message}");
             }
         }
 
@@ -360,7 +392,7 @@ namespace ConsoleApp1.Service
             _cts.Cancel(); // 取消所有异步任务
             Task.Delay(1000).Wait();
             channel.ShutdownAsync().Wait(); // 关闭gRPC通道
-            Console.WriteLine($"客户端[{_processId}]已停止");
+            Program.logger.LogInformation($"客户端[{_processId}]已停止");
         }
 
         /// <summary>
@@ -369,17 +401,17 @@ namespace ConsoleApp1.Service
         /// <returns></returns>
         public void ExitGracefully()
         {
-            Console.WriteLine("收到退出指令，开始优雅退出流程...");
+            Program.logger.LogInformation("收到退出指令，开始优雅退出流程...");
             // 停止数据采集（确保采集卡停止工作）
             if (aD_Controlcs.mHandle >= 0)
             {
                 aD_Controlcs.stop(); // 停止采集
                 USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
-                Console.WriteLine("采集卡资源已释放");
+                Program.logger.LogInformation("采集卡资源已释放");
             }
             // 向服务端发送退出确认响应（确保服务端收到）
             SendMessage("EXIT_OK");
-            Console.WriteLine("已向服务端发送退出确认响应");
+            Program.logger.LogInformation("已向服务端发送退出确认响应");
             // 触发gRPC任务取消和通道关闭
             Stop();
             Dispose();
@@ -419,7 +451,8 @@ namespace ConsoleApp1.Service
                 MessageType = string.Empty,
                 ErrorCode = "NONE", // 默认无错误
                 Content = string.Empty,
-                ProcessId = string.Empty
+                ProcessId = string.Empty,
+                MHandle = 0,
             };
         }
 
@@ -439,6 +472,7 @@ namespace ConsoleApp1.Service
             obj.ErrorCode = "NONE";
             obj.Content = string.Empty;
             obj.ProcessId = string.Empty;
+            obj.MHandle = 0;
 
             return true; // 允许回收至对象池
         }

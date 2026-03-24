@@ -28,18 +28,18 @@ namespace AvaloniaApplication1.Grpc {
             "ZS9wcm90b2J1Zi9hbnkucHJvdG8aG2dvb2dsZS9wcm90b2J1Zi9lbXB0eS5w",
             "cm90byJcCglBZFJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgdjb21t",
             "YW5kGAIgASgJEiQKBnBhcmFtcxgDIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5B",
-            "bnlKBAgKEBQimQEKCkFkUmVzcG9uc2USEwoLcmVzcG9uc2VfaWQYASABKAkS",
+            "bnlKBAgKEBQiqgEKCkFkUmVzcG9uc2USEwoLcmVzcG9uc2VfaWQYASABKAkS",
             "FAoMbWVzc2FnZV90eXBlGAIgASgJEg8KB2NvbnRlbnQYAyABKAkSEgoKZXJy",
             "b3JfY29kZRgEIAEoCRIiCgRkYXRhGAUgASgLMhQuZ29vZ2xlLnByb3RvYnVm",
-            "LkFueRIRCglwcm9jZXNzSWQYBiABKAlKBAgKEBQyXQoLR3JwY1NlcnZpY2US",
-            "TgoLQ29tbXVuaWNhdGUSHS5hZF9hY3F1aXNpdGlvbi52MS5BZFJlc3BvbnNl",
-            "GhwuYWRfYWNxdWlzaXRpb24udjEuQWRSZXF1ZXN0KAEwAUIcqgIZQXZhbG9u",
-            "aWFBcHBsaWNhdGlvbjEuR3JwY2IGcHJvdG8z"));
+            "LkFueRIRCglwcm9jZXNzSWQYBiABKAkSDwoHbUhhbmRsZRgHIAEoA0oECAoQ",
+            "FDJdCgtHcnBjU2VydmljZRJOCgtDb21tdW5pY2F0ZRIdLmFkX2FjcXVpc2l0",
+            "aW9uLnYxLkFkUmVzcG9uc2UaHC5hZF9hY3F1aXNpdGlvbi52MS5BZFJlcXVl",
+            "c3QoATABQhyqAhlBdmFsb25pYUFwcGxpY2F0aW9uMS5HcnBjYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.AnyReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.EmptyReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::AvaloniaApplication1.Grpc.AdRequest), global::AvaloniaApplication1.Grpc.AdRequest.Parser, new[]{ "RequestId", "Command", "Params" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::AvaloniaApplication1.Grpc.AdResponse), global::AvaloniaApplication1.Grpc.AdResponse.Parser, new[]{ "ResponseId", "MessageType", "Content", "ErrorCode", "Data", "ProcessId" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::AvaloniaApplication1.Grpc.AdResponse), global::AvaloniaApplication1.Grpc.AdResponse.Parser, new[]{ "ResponseId", "MessageType", "Content", "ErrorCode", "Data", "ProcessId", "MHandle" }, null, null, null, null)
           }));
     }
     #endregion
@@ -387,6 +387,7 @@ namespace AvaloniaApplication1.Grpc {
       errorCode_ = other.errorCode_;
       data_ = other.data_ != null ? other.data_.Clone() : null;
       processId_ = other.processId_;
+      mHandle_ = other.mHandle_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -491,6 +492,21 @@ namespace AvaloniaApplication1.Grpc {
       }
     }
 
+    /// <summary>Field number for the "mHandle" field.</summary>
+    public const int MHandleFieldNumber = 7;
+    private long mHandle_;
+    /// <summary>
+    ///设备句柄
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long MHandle {
+      get { return mHandle_; }
+      set {
+        mHandle_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -512,6 +528,7 @@ namespace AvaloniaApplication1.Grpc {
       if (ErrorCode != other.ErrorCode) return false;
       if (!object.Equals(Data, other.Data)) return false;
       if (ProcessId != other.ProcessId) return false;
+      if (MHandle != other.MHandle) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -525,6 +542,7 @@ namespace AvaloniaApplication1.Grpc {
       if (ErrorCode.Length != 0) hash ^= ErrorCode.GetHashCode();
       if (data_ != null) hash ^= Data.GetHashCode();
       if (ProcessId.Length != 0) hash ^= ProcessId.GetHashCode();
+      if (MHandle != 0L) hash ^= MHandle.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -567,6 +585,10 @@ namespace AvaloniaApplication1.Grpc {
         output.WriteRawTag(50);
         output.WriteString(ProcessId);
       }
+      if (MHandle != 0L) {
+        output.WriteRawTag(56);
+        output.WriteInt64(MHandle);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -601,6 +623,10 @@ namespace AvaloniaApplication1.Grpc {
         output.WriteRawTag(50);
         output.WriteString(ProcessId);
       }
+      if (MHandle != 0L) {
+        output.WriteRawTag(56);
+        output.WriteInt64(MHandle);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -628,6 +654,9 @@ namespace AvaloniaApplication1.Grpc {
       }
       if (ProcessId.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(ProcessId);
+      }
+      if (MHandle != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(MHandle);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -661,6 +690,9 @@ namespace AvaloniaApplication1.Grpc {
       }
       if (other.ProcessId.Length != 0) {
         ProcessId = other.ProcessId;
+      }
+      if (other.MHandle != 0L) {
+        MHandle = other.MHandle;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -708,6 +740,10 @@ namespace AvaloniaApplication1.Grpc {
             ProcessId = input.ReadString();
             break;
           }
+          case 56: {
+            MHandle = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -752,6 +788,10 @@ namespace AvaloniaApplication1.Grpc {
           }
           case 50: {
             ProcessId = input.ReadString();
+            break;
+          }
+          case 56: {
+            MHandle = input.ReadInt64();
             break;
           }
         }

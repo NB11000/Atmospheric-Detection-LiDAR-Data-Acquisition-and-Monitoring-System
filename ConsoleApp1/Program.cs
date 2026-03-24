@@ -1,6 +1,10 @@
-﻿using ConsoleApp1.Service;
+﻿using ConsoleApp1.Models;
+using ConsoleApp1.Service;
 using ConsoleApp1.Tools;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using NetMQ;
 using NetMQ.Sockets;
 using System;
@@ -19,21 +23,44 @@ using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-
 namespace ConsoleApp1
 {
     class Program
     {
-        // 数据采集控制类实例，负责设备控制与采集逻辑
+        /// <summary>
+        /// 数据采集控制类实例，负责设备控制与采集逻辑
+        /// </summary>
         private static AD_Controlcs aD_Controlcs = new AD_Controlcs();
-        // 记录最后一次收到主进程消息的时间
-        private static DateTime lastHeartbeat = DateTime.Now;
-        // 全局复用字符串（避免每次创建新实例）
-        private static string Error_msg;
-        private static string command = null;
 
-        private static string GrpcAddress;
-        private static volatile bool True_False = true;
+        /// <summary>
+        /// 公开的静态【配置实体属性】，主窗口可以直接获取
+        /// </summary>
+        public static CaptureCardConfig deviceconfig { get; set; } = new CaptureCardConfig();
+
+        /// <summary>
+        /// 配置文件读写管理器
+        /// </summary>
+        public static ConfigHelper Config;
+
+        /// <summary>
+        /// 日志
+        /// </summary>
+        public static ILogger logger = LoggerFactory.Create(b => b.AddConsole()
+                .SetMinimumLevel(LogLevel.Debug)).CreateLogger("运行日志"); // 初始化日志
+
+        /// <summary>
+        /// 注册DI容器 (依赖注入容器)
+        /// </summary>
+        public static IServiceCollection services = new ServiceCollection();
+
+        /// <summary>
+        /// 服务端IP
+        /// </summary>
+        public static string GrpcAddress { get; private set; } 
+        /// <summary>
+        /// 配置文件路径
+        /// </summary>
+        public static string ConfigFilePath { get; private set; }
 
 
         /// <summary>
@@ -42,6 +69,12 @@ namespace ConsoleApp1
         /// </summary>
         static async Task Main(string[] args)
         {
+
+            //// 注册Options（绑定到CaptureCard）
+            //services.AddOptions()
+            //    .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
+
+            Console.Title = "数据采集子进程";
             GC.RegisterForFullGCNotification(1, 1);
             // 后台线程监控GC暂停
             _ = Task.Run( () =>
@@ -51,22 +84,55 @@ namespace ConsoleApp1
                     var status = GC.WaitForFullGCApproach();
                     if (status == GCNotificationStatus.Succeeded)
                     {
-                        Console.WriteLine("GC信息: Full GC 即将触发");
+                        logger.LogWarning("GC信息: Full GC 即将触发");
                     }
                     Task.Delay(100).Wait();
                 }
             });
+
             try
             {
-                // 校验参数（确保传入了完整的ZeroMQ地址）
+
+                // ==============================================
+                // 读取 2 个命令行参数：IP + 配置文件路径
+                // ==============================================
+                // 校验参数（确保传入了完整的参数）
                 if (args.Length == 0 || !args[0].StartsWith("https://"))
                 {
-                    Console.WriteLine("错误：未获取到有效的ZeroMQ连接地址（格式：https://IP:Port）");
+                    logger.LogInformation("错误：未获取到有效的Grpc服务端连接地址（格式：https://IP:Port）");
                     return;
                 }
-                // 直接读取完整的连接地址（无解析，零GC）
-                GrpcAddress = args[0];
-                Console.WriteLine(GrpcAddress);
+                else if (args.Length >= 2)
+                {
+                    // 直接读取完整的连接地址（无解析，零GC）
+                    GrpcAddress = args[0];
+                    // 第2个参数：配置文件路径
+                    ConfigFilePath = args[1];
+                    logger.LogInformation("[主进程] 使用传入IP：" + GrpcAddress);
+                    logger.LogInformation("[主进程] 使用传入配置：" + ConfigFilePath);
+                }
+
+                logger.LogInformation($"读取到完整的连接地址：{GrpcAddress}，准备启动Grpc客户端...");
+
+                ConfigHelper.ConfigFilePath = ConfigFilePath;
+                logger.LogInformation($"读取到配置文件路径：{ConfigHelper.ConfigFilePath},准备加载配置");
+
+                // 构建.NET配置提供程序
+                ConfigHelper.Config = new ConfigurationBuilder()
+                    .SetBasePath(Path.GetDirectoryName(ConfigFilePath)!)
+                    .AddJsonFile("DeviceConfig.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
+                services.AddSingleton<ConfigHelper>();
+                // 注册Options（绑定到CaptureCard）
+                services.AddOptions()
+                    .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
+                //从DI容器中获取配置文件读写管理器
+                Config = (ConfigHelper)services.BuildServiceProvider().GetRequiredService(typeof(ConfigHelper));
+                //从JSON文件读取设备配置到实体类
+                Config.ReadDeviceConfig();
+
 
                 //GrpcAddress = "https://localhost:10000";
 

@@ -23,7 +23,7 @@ namespace ConsoleApp1.Service
     /// 数据采集控制类;
     /// 四个线程: ADWork(数据采集), ADDraw(数据处理), Analysis(数据分析), UI(UI刷新);
     /// 三个通道: channel(采样数据传递), Analysischannel(数据分析), UIchannel(UI显示);
-    /// 依赖两个外部变量：1.mHandle(设备句柄); 2.DeviceConfig(当前设备配置);
+    /// 依赖两个外部变量：1.mHandle(设备句柄); 2.CaptureCardConfig(当前设备配置);
     /// </summary>
     public class AD_Controlcs
     {
@@ -46,7 +46,7 @@ namespace ConsoleApp1.Service
         Thread s3;
         Thread s4;
         List<Thread> AllThread = new List<Thread>();
-        //private DeviceConfig deviceConfig; // 获取当前设备配置
+        //private CaptureCardConfig deviceConfig; // 获取当前设备配置
         //private readonly MainWindowViewModel vm; // MainWindow的视图模型
 
         //private volatile ArrayPool<byte> pool = ArrayPool<byte>.Shared;// 声明一个字节数组池，用于减少内存分配和垃圾回收的开销
@@ -94,7 +94,7 @@ namespace ConsoleApp1.Service
         /// <returns>设备状态</returns>
         public string Device_Opened()
         {
-            mHandle = USB1602.USB1602_OpenDevice(0);
+            mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
             if (mHandle < 0)
                 return "未检测到采集卡";
             else
@@ -107,9 +107,8 @@ namespace ConsoleApp1.Service
         /// <returns>设备状态</returns>
         public string Device_Opened_again()
         {
-            int card = 0;
             //打开设备
-            mHandle = USB1602.USB1602_OpenDevice(card);
+            mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
             if (mHandle < 0)
                 return "仍未检测到采集卡，请检查USB接口和是否安装采集卡驱动程序";
             else
@@ -384,18 +383,33 @@ namespace ConsoleApp1.Service
                     //if (!channel.Reader.TryRead(out block))
                     //    continue;
 
-                    try
+                    //try
+                    //{
+                    //    //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
+                    //    block = channel.Reader.ReadAsync(cts.Token)
+                    //                          .AsTask()
+                    //                          .GetAwaiter()
+                    //                          .GetResult();
+                    //    //channel.Reader.TryRead(out block);
+                    //}
+                    //catch (OperationCanceledException)
+                    //{
+                    //    break; // 正常退出
+                    //}
+                    while (true)
                     {
-                        //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
-                        block = channel.Reader.ReadAsync(cts.Token)
-                                              .AsTask()
-                                              .GetAwaiter()
-                                              .GetResult();
+                        // 先Peek检查是否有数据
+                        if (channel.Reader.TryPeek(out var item))
+                        {
+                            channel.Reader.TryRead(out block); // 检查有数据时，调用TryRead消费
+                            break; // 正常退出
+                        }
+                        else
+                        {
+                            Thread.Sleep(1); // 阻塞等待1ms，防止cpu空转
+                        }
                     }
-                    catch (OperationCanceledException)
-                    {
-                        break; // 正常退出
-                    }
+
 
                     //从数组池租用数组
                     if (Result1)
@@ -418,15 +432,6 @@ namespace ConsoleApp1.Service
                     //注意：处理数据块中数组的有效数据长度nBytes
                     for (i = 0; i < block.nBytes / 2; i++)
                     {
-                        ////如果 ADDataTest_RunFlag 变为 false ，则归还数组，防止内存泄漏
-                        //if (!ADDataTest_RunFlag)
-                        //{
-                        //    ArrayPool<double>.Shared.Return(result1);
-                        //    ArrayPool<double>.Shared.Return(result2);
-                        //    ArrayPool<double>.Shared.Return(Ui1);
-                        //    ArrayPool<double>.Shared.Return(Ui2);
-                        //    goto End;
-                        //}
 
                         if (Result1)
                         {
@@ -483,8 +488,9 @@ namespace ConsoleApp1.Service
                         }
                     }
 
+                    // 写入UI显示通道
                     if (!UIchannel.Writer.TryWrite(new UI_Display
-                    { Voltage1 = Ui1, Voltage2 = Ui2 }))// 写入UI显示通道
+                    { Voltage1 = Ui1, Voltage2 = Ui2 }))
                     {
                         // 如果写入失败，归还数组，防止泄漏
                         if (Result1)
@@ -540,17 +546,31 @@ namespace ConsoleApp1.Service
                     //if (!Analysischannel.Reader.TryRead(out voltageBlock))// 从通道中读取数据块
                     //    continue;// 从通道中读取数据块,如果没读到，则跳出本次循环
 
-                    try
+                    //try
+                    //{
+                    //    //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
+                    //    voltageBlock = Analysischannel.Reader.ReadAsync(cts.Token)
+                    //                          .AsTask()
+                    //                          .GetAwaiter()
+                    //                          .GetResult();
+                    //}
+                    //catch (OperationCanceledException)
+                    //{
+                    //    break; // 正常退出
+                    //}
+
+                    while (true)
                     {
-                        //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
-                        voltageBlock = Analysischannel.Reader.ReadAsync(cts.Token)
-                                              .AsTask()
-                                              .GetAwaiter()
-                                              .GetResult();
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break; // 正常退出
+                        // 先Peek检查是否有数据
+                        if (Analysischannel.Reader.TryPeek(out var item))
+                        {
+                            Analysischannel.Reader.TryRead(out voltageBlock); // 检查有数据时，调用TryRead消费
+                            break; // 正常退出
+                        }
+                        else
+                        {
+                            Thread.Sleep(1); // 阻塞等待1ms，防止cpu空转
+                        }
                     }
 
                     // 下面写 数据分析代码
@@ -579,6 +599,7 @@ namespace ConsoleApp1.Service
             }
         }
 
+
         private static Stopwatch stopwatch;
         /// <summary>
         /// UI刷新线程（UI调度层）
@@ -597,22 +618,40 @@ namespace ConsoleApp1.Service
             {
                 while (ADDataTest_RunFlag)
                 {
-                    try
-                    {
-                        //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
-                        UIDisplay = UIchannel.Reader.ReadAsync(cts.Token)
-                                              .AsTask()
-                                              .GetAwaiter()
-                                              .GetResult();
-                        if (UIDisplay.Voltage1 != null)
-                            ch1= true;
-                        if (UIDisplay.Voltage2 != null)
-                            ch2= true;
+                    //try
+                    //{
+                    //    //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
+                    //    UIDisplay = UIchannel.Reader.ReadAsync(cts.Token)
+                    //                          .AsTask()
+                    //                          .GetAwaiter()
+                    //                          .GetResult();
+                    //    if (UIDisplay.Voltage1 != null)
+                    //        ch1= true;
+                    //    if (UIDisplay.Voltage2 != null)
+                    //        ch2= true;
 
-                    }
-                    catch (OperationCanceledException)
+                    //}
+                    //catch (OperationCanceledException)
+                    //{
+                    //    break; // 正常退出
+                    //}
+
+                    while (true)
                     {
-                        break; // 正常退出
+                        // 先Peek检查是否有数据
+                        if (UIchannel.Reader.TryPeek(out var item))
+                        {
+                            UIchannel.Reader.TryRead(out UIDisplay); // 检查有数据时，调用TryRead消费
+                            if (UIDisplay.Voltage1 != null)
+                                ch1 = true;
+                            if (UIDisplay.Voltage2 != null)
+                                ch2 = true;
+                            break; // 正常退出
+                        }
+                        else
+                        {
+                            Thread.Sleep(1); // 阻塞等待1ms，防止cpu空转
+                        }
                     }
 
                     // 是否到 33ms 刷新窗口
@@ -693,16 +732,16 @@ namespace ConsoleApp1.Service
             //    fs = new FileStream(subPath + "\\" + FileName + ".dat", FileMode.Create);
             //}
 
-            //chSel = (byte)(Window1.CurrentConfig.SyncChannelIndex + 1);
-            //Gain = (byte)Window1.CurrentConfig.RangeIndex;
-            //freq = (float)Window1.CurrentConfig.SampleRate;
-            //freDiv = (UInt16)Math.Round(40000.0 / freq);
-            //if (freDiv < 40)
-            //    freDiv = 40;
-            //if (freDiv > 65535)
-            //    freDiv = 65535;
-            //clock = (byte)Window1.CurrentConfig.ClockSourceIndex;
-            //trigMode = (byte)Window1.CurrentConfig.TriggerSourceIndex;
+            chSel = (byte)(Program.deviceconfig.SyncChannelIndex + 1);
+            Gain = (byte)Program.deviceconfig.RangeIndex;
+            freq = (float)Program.deviceconfig.SampleRate;
+            freDiv = (UInt16)Math.Round(40000.0 / freq);
+            if (freDiv < 40)
+                freDiv = 40;
+            if (freDiv > 65535)
+                freDiv = 65535;
+            clock = (byte)Program.deviceconfig.ClockSourceIndex;
+            trigMode = (byte)Program.deviceconfig.TriggerSourceIndex;
 
             //清fifo
             iResult = USB1602.USB1602_CLRRAM(mHandle);
@@ -713,11 +752,11 @@ namespace ConsoleApp1.Service
             iResult = USB1602.USB1602_AD2RangeSet(mHandle, Gain);//设置通道2量程
 
             //频率
-            //iResult = USB1602.USB1602_SetFreDiv(mHandle, freDiv);//设置采样频率
+            iResult = USB1602.USB1602_SetFreDiv(mHandle, freDiv);//设置采样频率
 
-            ////工作模式
-            //iResult = USB1602.USB1602_SetClkSource(mHandle, clock);//设置AD时钟源
-            //iResult = USB1602.USB1602_SetADMode(mHandle, trigMode);//设置AD触发模式
+            //工作模式
+            iResult = USB1602.USB1602_SetClkSource(mHandle, clock);//设置AD时钟源
+            iResult = USB1602.USB1602_SetADMode(mHandle, trigMode);//设置AD触发模式
 
 
             ADDataTest_RunFlag = true;
@@ -792,17 +831,6 @@ namespace ConsoleApp1.Service
             iResult = USB1602.USB1602_IOCTL_VENDOR_REQUEST(mHandle, 0XBA);
             //清除FIFO
             iResult = USB1602.USB1602_CLRRAM(mHandle);
-            // UI刷新线程单独控制
-            //s4.Join(5000);
-            //if (s4.IsAlive == true)
-            //    s4.Abort();
-
-            //如果（生产者-消费者）线程没有退出，强制退出
-            //s1.Abort();
-            //s2.Abort();
-            //s3.Abort();
-            //停止UI线程
-            //s4.Abort();
 
             // 清除通道数据
             //channel

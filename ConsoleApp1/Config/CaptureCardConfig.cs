@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization; // 新增：JSON序列化特性
 
 namespace ConsoleApp1.Models
 {
-    /// <summary>
-    /// 采集卡配置参数
-    /// </summary>
-    public class DeviceConfig
+    public class CaptureCardConfig
     {
+
+        /// <summary>
+        /// 设备编号
+        /// </summary>
+        public int DeviceId { get; set; } = 0;
 
         // 同步通道数：0=通道1，1=通道2，2=通道1和通道2
         public int SyncChannelIndex { get; set; } = 2;
@@ -30,17 +33,22 @@ namespace ConsoleApp1.Models
         // 量程：0=±5V，1=±10V
         public int RangeIndex { get; set; } = 0;
 
-        // 采样周期（秒）
+        // 采样周期（秒）- 计算属性，不持久化
         // 注意：这个属性不是直接设置的，而是根据采样频率计算得出
         // 单个采样点的时间戳=初始时间戳+采样点索引*采样周期
+        [JsonIgnore] // 序列化时忽略该属性
         public double SamplePeriod;
 
-        public DeviceConfig()
+        public CaptureCardConfig()
         {
-            SamplePeriod= 1 / (double)(SampleRate * 1000);
+            RecalculateSamplePeriod();// 初始化时计算
         }
 
-
+        // 新增：重新计算采样周期（修改SampleRate后调用）
+        public void RecalculateSamplePeriod()
+        {
+            SamplePeriod = 1 / (double)(SampleRate * 1000);
+        }
 
 
         // 可选：增加属性转文字的快捷方法，方便主窗口展示

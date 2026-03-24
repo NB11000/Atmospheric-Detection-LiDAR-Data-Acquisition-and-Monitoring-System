@@ -22,7 +22,7 @@ namespace ConsoleApp1
     internal class ZeroMQ
     {
         // 数据采集控制类实例，负责设备控制与采集逻辑
-        private static AD_Controlcs aD_Controlcs = new AD_Controlcs();
+        // private static AD_Controlcs aD_Controlcs = new AD_Controlcs();
         // NetMQ通信Socket(客户端)
         private static DealerSocket socket;
         // 记录最后一次收到主进程消息的时间

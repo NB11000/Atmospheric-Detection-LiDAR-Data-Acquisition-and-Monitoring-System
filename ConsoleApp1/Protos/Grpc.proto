@@ -54,6 +54,9 @@ message AdResponse {
   //客户端进程ID
   string processId = 6;
 
+  //设备句柄
+  int64 mHandle = 7;
+
   // 【预留字段】10-19段预留
   reserved 10 to 19;
 }

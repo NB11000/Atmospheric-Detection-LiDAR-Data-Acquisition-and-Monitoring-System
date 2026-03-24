@@ -16,7 +16,12 @@
 	  <ServerGarbageCollection>true</ServerGarbageCollection>
 	  <!-- 后台并发回收，减少STW时长 -->
 	  <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+	  <Platforms>AnyCPU;x64;x86</Platforms>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ZeroMQ.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.34.0" />
@@ -25,6 +30,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="8.0.25" />
     <PackageReference Include="NetMQ" Version="4.0.2.2" />
   </ItemGroup>
@@ -46,6 +54,11 @@
 
   <ItemGroup>
     <Folder Include="Generated\" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <None Include="ZeroMQ.cs" />
   </ItemGroup>
   
 
