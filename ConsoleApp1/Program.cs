@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using NetMQ;
 using NetMQ.Sockets;
+using SharedMemoryFramework;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -62,6 +63,11 @@ namespace ConsoleApp1
         /// </summary>
         public static string ConfigFilePath { get; private set; }
 
+        /// <summary>
+        /// UI显示专用共享缓冲区
+        /// </summary>
+        public static UISharedBuffer uISharedBuffer { get; private set; }
+
 
         /// <summary>
         /// 客户端入口（控制台/UI程序均可）
@@ -116,6 +122,11 @@ namespace ConsoleApp1
 
                 ConfigHelper.ConfigFilePath = ConfigFilePath;
                 logger.LogInformation($"读取到配置文件路径：{ConfigHelper.ConfigFilePath},准备加载配置");
+
+                uISharedBuffer = new UISharedBuffer();
+                uISharedBuffer.Open();
+                logger.LogInformation("连接主进程的[UI显示]专用共享内存缓冲区");
+
 
                 // 构建.NET配置提供程序
                 ConfigHelper.Config = new ConfigurationBuilder()

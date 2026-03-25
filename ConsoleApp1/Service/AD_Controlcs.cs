@@ -158,7 +158,7 @@ namespace ConsoleApp1.Service
             );
 
             //UI显示通道
-            UIchannel = Channel.CreateBounded<UI_Display>(new BoundedChannelOptions(8)
+            UIchannel = Channel.CreateBounded<UI_Display>(new BoundedChannelOptions(10)
             {
                 FullMode = BoundedChannelFullMode.DropOldest, // 或 Wait
                 SingleWriter = true,
@@ -236,6 +236,78 @@ namespace ConsoleApp1.Service
 
             GC.Collect();// 强制进行垃圾回收，释放未使用的内存
         }
+
+
+
+        /// <summary>
+        /// 最小值最大值降采样算法（工业示波器常用）
+        /// 
+        /// 作用：
+        /// 将任意长度的数据降采样为指定像素数（例如1000点）
+        /// 
+        /// 算法原理：
+        /// 1. 将原始数据分成 N 段
+        /// 2. 每段计算最小值和最大值
+        /// 3. 将 min / max 交替写入输出数组
+        /// 
+        /// 优点：
+        /// - 保留波形尖峰
+        /// - 不会丢失极值
+        /// - 时间复杂度 O(N)
+        /// - 无GC
+        /// 
+        /// 示例：
+        /// 输入 90000 点 → 输出 1000 点
+        /// 
+        /// 90000 / 500 = 180
+        /// 
+        /// 每180个点：
+        /// min → 输出
+        /// max → 输出
+        /// </summary>
+        /// <param name="source">原始数据</param>
+        /// <param name="dest">降采样后的数组（例如1000长度）</param>
+        private static void DownSampleMinMax(double[] source, double[] dest)
+        {
+            // 原始数据长度（自动识别）
+            int sourceLength = source.Length;
+            // 输出长度（例如1000）
+            int destLength = dest.Length;
+            // 每段输出2个点（min + max），分为500段
+            int segmentCount = destLength / 2;
+            // 每段包含多少原始点
+            int bucketSize = sourceLength / segmentCount;
+            // 写入位置
+            int di = 0;
+
+            // 遍历每个段
+            for (int i = 0; i < segmentCount; i++)
+            {
+                int start = i * bucketSize;
+                int end = start + bucketSize;
+
+                // 防止越界
+                if (end > sourceLength)
+                    end = sourceLength;
+
+                double min = double.MaxValue;
+                double max = double.MinValue;
+
+                // 在当前段中寻找最小值和最大值
+                for (int j = start; j < end; j++)
+                {
+                    double v = source[j];
+
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
+
+                // 写入降采样结果
+                dest[di++] = min;
+                dest[di++] = max;
+            }
+        }
+
 
 
         /// <summary>
@@ -415,12 +487,12 @@ namespace ConsoleApp1.Service
                     if (Result1)
                     {
                         result1 = ArrayPool<double>.Shared.Rent(c);// 从数组池获取一个数组，临时存储通道1的电压数据
-                        Ui1 = ArrayPool<double>.Shared.Rent(1000);
+                        Ui1 = ArrayPool<double>.Shared.Rent(c);
                     }
                     if (Result2)
                     {
                         result2 = ArrayPool<double>.Shared.Rent(c);// 从数组池获取一个数组，临时存储通道2的电压数据
-                        Ui2 = ArrayPool<double>.Shared.Rent(1000);
+                        Ui2 = ArrayPool<double>.Shared.Rent(c);
                     }
 
                     startTick = Stopwatch.GetTimestamp();// 记录当前采样时间，采样时间戳
@@ -441,12 +513,13 @@ namespace ConsoleApp1.Service
                             //Calibration(ref dfRet, k1, b1);
                             dfRet = k1 * dfRet + b1;//校准
                             dfRet = Math.Round(dfRet, 5);
+
+                            // 处理后的数据依次写入分析数据数组和UI显示数组
                             result1[j] = dfRet;
+                            Ui1[j] = dfRet;
 
                             // 这里写 根据通道1的数据存入电压数据块（Voltage_block） 注意不要把m_RData写入Voltage_block，因为m_RData存放的是数组的内存地址。不是数据本身。
                             // 然后再将电压数据块存入到一个集合/数组中，之后再写入到 Channel<Voltage_block> 通道（全量分析通道）中。
-                            // 然后将这个集合/数组span化，通过切片的方式，均匀间隔取10000个点，以达到降采样的效果，存入到 Channel<DisplayFrame> 通道（UI显示通道）中。
-
                             if (chSel == 3)
                                 i++;
                         }
@@ -458,18 +531,21 @@ namespace ConsoleApp1.Service
                             //Calibration(ref dfRet, k2, b2);
                             dfRet = k2 * dfRet + b2;//校准
                             dfRet = Math.Round(dfRet, 5);
+
+                            // 处理后的数据依次写入分析数据数组和UI显示数组
                             result2[j] = dfRet;
+                            Ui2[j] = dfRet;
                             //这里写 同上  
                         }
                         j++;
                     }
 
-                    //这一步，从临时存储result1，result2中，抽样取前1000个点（降采样），然后写入UI显示通道 
-                    // span 内存块批量拷贝，无内存和GC开销
-                    if (Result1)
-                        new Span<double>(result1, 0, 1000).CopyTo(Ui1);
-                    if (Result2)
-                        new Span<double>(result2, 0, 1000).CopyTo(Ui2);
+                    ////这一步，从临时存储result1，result2中，拷贝全部采样点，然后写入UI显示通道 
+                    //// span 内存块批量拷贝，无内存和GC开销
+                    //if (Result1)
+                    //    new Span<double>(result1).CopyTo(Ui1);
+                    //if (Result2)
+                    //    new Span<double>(result2).CopyTo(Ui2);
 
                     // 将处理后的电压数据块写入分析通道
                     if (!Analysischannel.Writer.TryWrite(new Voltage_block
@@ -647,14 +723,19 @@ namespace ConsoleApp1.Service
                             ArrayPool<double>.Shared.Return(UIDisplay.Voltage2);
                         continue;
                     }
-
                     stopwatch.Restart();
 
-                    // 使用 span 将数据复制到预分配的数组中，避免归还数组时的影响跨线程操作
+                    //// 使用 span 将数据复制到预分配的数组中，避免归还数组时的影响跨线程操作
+                    //if (ch1)
+                    //    new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
+                    //if (ch2)
+                    //    new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
+
+                    // 使用最小值最大值降采样算法,对数据进行降采样
                     if (ch1)
-                        new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
+                        DownSampleMinMax(UIDisplay.Voltage1, text1);
                     if (ch2)
-                        new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
+                        DownSampleMinMax(UIDisplay.Voltage2, text2);
 
                     ////切换到UI线程更新图表数据
                     //Dispatcher.UIThread.Post(() =>
@@ -668,6 +749,10 @@ namespace ConsoleApp1.Service
                     //    vm.UpdateChart1(text1, text2, 1000);
 
                     //});
+
+                    // 将UI降采样数据写入共享内存
+                    Program.uISharedBuffer.WriteSampleBatch(text1, text2, 1000);
+
                     // 处理完数据后归还数组
                     if (ch1)
                         ArrayPool<double>.Shared.Return(UIDisplay.Voltage1);

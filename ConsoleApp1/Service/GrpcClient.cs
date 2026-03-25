@@ -187,7 +187,6 @@ namespace ConsoleApp1.Service
                     // 打开采集卡
                     case "OPEN_DEVICE":
 
-                        Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
                         response.Content = aD_Controlcs.Device_Opened();
                         response.MHandle = aD_Controlcs.mHandle;
                         Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
@@ -196,9 +195,16 @@ namespace ConsoleApp1.Service
                     // 重新打开采集卡
                     case "OPEN_DEVICE_AGAIN":
 
-                        Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
                         response.Content = aD_Controlcs.Device_Opened_again();
                         response.MHandle = aD_Controlcs.mHandle;
+                        Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
+                        break;
+
+                    // 关闭采集卡
+                    case "CLOSE_DEVICE":
+
+                        USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
+                        response.Content = "采集卡设备已关闭";
                         Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
                         break;
 
