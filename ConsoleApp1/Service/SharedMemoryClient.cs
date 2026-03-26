@@ -56,7 +56,7 @@ namespace SharedMemoryFramework
             int headerSize = sizeof(UIRingHeader);
 
             // ===================== 精准定制安全容量 =====================
-            const int SAFE_CAPACITY = 32768;
+            const int SAFE_CAPACITY = 30000;
 
             // 总数据大小：UI共享内存头 + 通道1缓冲区 + 通道2缓冲区
             long dataSize = (SAFE_CAPACITY * sizeof(double)) * 2;
@@ -111,6 +111,7 @@ namespace SharedMemoryFramework
             {
                 long idx = currentIdx + i;
                 int pos = (int)(idx % header->BufferLength);
+
                 Buffer1[pos] = buffer1[i];
                 Buffer2[pos] = buffer2[i];
             }

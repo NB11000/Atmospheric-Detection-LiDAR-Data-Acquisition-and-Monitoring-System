@@ -145,10 +145,10 @@ namespace ConsoleApp1.Service
                 // 请求配置文件路径
 
                 // 5. 启动心跳上报后台任务（可选：客户端主动向服务端发送心跳）
-                var heartbeatTask = Task.Run(() => SendHeartbeat(_cts.Token));
+                //var heartbeatTask = Task.Run(() => SendHeartbeat(_cts.Token));
 
                 // 等待任务完成（或被取消）
-                await Task.WhenAll(readTask, heartbeatTask, sendResponse);
+                await Task.WhenAll(readTask, sendResponse);
             }
             catch (OperationCanceledException)
             {

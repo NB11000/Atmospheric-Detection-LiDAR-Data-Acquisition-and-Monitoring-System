@@ -713,17 +713,17 @@ namespace ConsoleApp1.Service
                         }
                     }
 
-                    // 是否到 33ms 刷新窗口
-                    if (stopwatch.ElapsedMilliseconds < UI_INTERVAL_MS)
-                    {
-                        // 没到33ms归还数组
-                        if (ch1)
-                            ArrayPool<double>.Shared.Return(UIDisplay.Voltage1);
-                        if (ch2)
-                            ArrayPool<double>.Shared.Return(UIDisplay.Voltage2);
-                        continue;
-                    }
-                    stopwatch.Restart();
+                    //// 是否到 33ms 刷新窗口
+                    //if (stopwatch.ElapsedMilliseconds < UI_INTERVAL_MS)
+                    //{
+                    //    // 没到33ms归还数组
+                    //    if (ch1)
+                    //        ArrayPool<double>.Shared.Return(UIDisplay.Voltage1);
+                    //    if (ch2)
+                    //        ArrayPool<double>.Shared.Return(UIDisplay.Voltage2);
+                    //    continue;
+                    //}
+                    //stopwatch.Restart();
 
                     //// 使用 span 将数据复制到预分配的数组中，避免归还数组时的影响跨线程操作
                     //if (ch1)
@@ -732,10 +732,11 @@ namespace ConsoleApp1.Service
                     //    new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
 
                     // 使用最小值最大值降采样算法,对数据进行降采样
+                    // DownSampleMinMax(UIDisplay.Voltage1, text1);
                     if (ch1)
-                        DownSampleMinMax(UIDisplay.Voltage1, text1);
+                        new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
                     if (ch2)
-                        DownSampleMinMax(UIDisplay.Voltage2, text2);
+                        new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
 
                     ////切换到UI线程更新图表数据
                     //Dispatcher.UIThread.Post(() =>
