@@ -100,8 +100,9 @@ namespace ConsoleApp1.Service
         {
             try
             {
+
                 // 1. 调用服务端的Communicate双向流方法，获取流对象
-                var stream = client.Communicate(cancellationToken: _cts.Token);
+                var stream = client.Communicate(cancellationToken: _cts.Token); // 开始双向流
 
                 // 2. 保存客户端→服务端的响应写入器（用于发送响应/上报）
                 _responseStreamWriter = stream.RequestStream;

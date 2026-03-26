@@ -10,8 +10,6 @@
 	  <SelfContained>true</SelfContained>
 	  <!-- 必加：包含本机库-->
 	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-	  <!--  AOT  -->
-	  <PublishAot>true</PublishAot>
 	  <!-- 每个CPU核心独立GC堆，缩短STW -->
 	  <ServerGarbageCollection>true</ServerGarbageCollection>
 	  <!-- 后台并发回收，减少STW时长 -->
