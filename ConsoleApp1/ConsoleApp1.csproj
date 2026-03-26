@@ -17,6 +17,7 @@
 	  <!-- 后台并发回收，减少STW时长 -->
 	  <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
 	  <Platforms>AnyCPU;x64;x86</Platforms>
+	  <BaseOutputPath>E:\新建文件夹 (2)\数据展示\数据采集与检测系统V2.0\AvaloniaApplication1\bin</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
