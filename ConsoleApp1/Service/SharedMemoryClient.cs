@@ -140,6 +140,36 @@ namespace SharedMemoryFramework
             }
         }
 
+        /// <summary>
+        /// 清空环形缓冲区（使用循环方式，兼容性更好）
+        /// </summary>
+        /// <param name="resetWriteIndex">是否重置写索引</param>
+        public void ClearBufferSafe(bool resetWriteIndex = true)
+        {
+            if (header == null)
+                throw new InvalidOperationException("Shared memory not initialized");
+
+            int bufferLength = header->BufferLength;
+
+            // 清空缓冲区1
+            for (int i = 0; i < bufferLength; i++)
+            {
+                Buffer1[i] = 0.0;
+            }
+
+            // 清空缓冲区2
+            for (int i = 0; i < bufferLength; i++)
+            {
+                Buffer2[i] = 0.0;
+            }
+
+            // 重置写索引
+            if (resetWriteIndex)
+            {
+                header->WriteIndex = 0;
+            }
+        }
+
         public void Dispose()
         {
             accessor?.Dispose();
