@@ -1,6 +1,7 @@
 ﻿using AvaloniaApplication1;
 using AvaloniaApplication1.Models;
 using ConsoleApp1.Tools;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections;
@@ -488,11 +489,17 @@ namespace ConsoleApp1.Service
                     {
                         result1 = ArrayPool<double>.Shared.Rent(c);// 从数组池获取一个数组，临时存储通道1的电压数据
                         Ui1 = ArrayPool<double>.Shared.Rent(c);
+                        // 清零数组，避免残留数据导致显示异常
+                        Array.Clear(result1, 0, c);
+                        Array.Clear(Ui1, 0, c);
                     }
                     if (Result2)
                     {
                         result2 = ArrayPool<double>.Shared.Rent(c);// 从数组池获取一个数组，临时存储通道2的电压数据
                         Ui2 = ArrayPool<double>.Shared.Rent(c);
+                        // 清零数组，避免残留数据导致显示异常
+                        Array.Clear(result2, 0, c);
+                        Array.Clear(Ui2, 0, c);
                     }
 
                     startTick = Stopwatch.GetTimestamp();// 记录当前采样时间，采样时间戳
@@ -502,50 +509,79 @@ namespace ConsoleApp1.Service
                     //处理从通道获取的数据块中所有的采样点数据
                     //可能有越界问题，后续测试
                     //注意：处理数据块中数组的有效数据长度nBytes
-                    for (i = 0; i < block.nBytes / 2; i++)
+                    // 根据通道选择确定数据布局
+                    // chSel: 1=通道1, 2=通道2, 3=双通道同步
+                    // 双通道同步时，数据交错：每4字节包含两个通道的采样点（各2字节）
+                    // 即缓冲区布局：CH1_sample0, CH2_sample0, CH1_sample1, CH2_sample1, ...
+                    // 因此，每处理一对采样点，需要读取4字节
+                    if (chSel == 3)
                     {
-
-                        if (Result1)
+                        // 双通道同步，每次处理4字节（2个采样点）
+                        // 循环次数 = 总字节数 / 4 = 每个通道的采样点数
+                        for (i = 0; i < block.nBytes / 4; i++)
                         {
-                            dfRet = block.Buffer[i * 2] + block.Buffer[i * 2 + 1] * 256;//仅示例一个采样点计算
-                            dfRet = (int)dfRet & 0x0000ffff;
-                            USB1602.Fun_DataToV(ref dfRet, Gain);
-                            //Calibration(ref dfRet, k1, b1);
-                            dfRet = k1 * dfRet + b1;//校准
-                            dfRet = Math.Round(dfRet, 5);
-
-                            // 处理后的数据依次写入分析数据数组和UI显示数组
-                            result1[j] = dfRet;
-                            Ui1[j] = dfRet;
-
-                            // 这里写 根据通道1的数据存入电压数据块（Voltage_block） 注意不要把m_RData写入Voltage_block，因为m_RData存放的是数组的内存地址。不是数据本身。
-                            // 然后再将电压数据块存入到一个集合/数组中，之后再写入到 Channel<Voltage_block> 通道（全量分析通道）中。
-                            if (chSel == 3)
-                                i++;
+                            // 通道1数据
+                            if (Result1)
+                            {
+                                dfRet = block.Buffer[i * 4] + block.Buffer[i * 4 + 1] * 256;
+                                dfRet = (int)dfRet & 0x0000ffff;
+                                USB1602.Fun_DataToV(ref dfRet, Gain);
+                                dfRet = k1 * dfRet + b1;//校准
+                                dfRet = Math.Round(dfRet, 5);
+                                result1[j] = dfRet;
+                                Ui1[j] = dfRet;
+                            }
+                            // 通道2数据
+                            if (Result2)
+                            {
+                                dfRet = block.Buffer[i * 4 + 2] + block.Buffer[i * 4 + 3] * 256;
+                                dfRet = (int)dfRet & 0x0000ffff;
+                                USB1602.Fun_DataToV(ref dfRet, Gain);
+                                dfRet = k2 * dfRet + b2;//校准
+                                dfRet = Math.Round(dfRet, 5);
+                                result2[j] = dfRet;
+                                Ui2[j] = dfRet;
+                            }
+                            j++;
                         }
-                        if (Result2)
+                    }
+                    else
+                    {
+                        // 单通道，每次处理2字节（1个采样点）
+                        // 循环次数 = 总字节数 / 2
+                        for (i = 0; i < block.nBytes / 2; i++)
                         {
-                            dfRet = block.Buffer[i * 2] + block.Buffer[i * 2 + 1] * 256;//仅示例一个采样点计算
-                            dfRet = (int)dfRet & 0x0000ffff;
-                            USB1602.Fun_DataToV(ref dfRet, Gain);
-                            //Calibration(ref dfRet, k2, b2);
-                            dfRet = k2 * dfRet + b2;//校准
-                            dfRet = Math.Round(dfRet, 5);
-
-                            // 处理后的数据依次写入分析数据数组和UI显示数组
-                            result2[j] = dfRet;
-                            Ui2[j] = dfRet;
-                            //这里写 同上  
+                            if (Result1)
+                            {
+                                dfRet = block.Buffer[i * 2] + block.Buffer[i * 2 + 1] * 256;
+                                dfRet = (int)dfRet & 0x0000ffff;
+                                USB1602.Fun_DataToV(ref dfRet, Gain);
+                                dfRet = k1 * dfRet + b1;//校准
+                                dfRet = Math.Round(dfRet, 5);
+                                result1[j] = dfRet;
+                                Ui1[j] = dfRet;
+                            }
+                            if (Result2)
+                            {
+                                // 对于单通道，Result2为真仅当chSel == 2，此时数据仍然是每2字节一个采样点
+                                dfRet = block.Buffer[i * 2] + block.Buffer[i * 2 + 1] * 256;
+                                dfRet = (int)dfRet & 0x0000ffff;
+                                USB1602.Fun_DataToV(ref dfRet, Gain);
+                                dfRet = k2 * dfRet + b2;//校准
+                                dfRet = Math.Round(dfRet, 5);
+                                result2[j] = dfRet;
+                                Ui2[j] = dfRet;
+                            }
+                            j++;
                         }
-                        j++;
                     }
 
                     ////这一步，从临时存储result1，result2中，拷贝全部采样点，然后写入UI显示通道 
                     //// span 内存块批量拷贝，无内存和GC开销
                     //if (Result1)
-                    //    new Span<double>(result1).CopyTo(Ui1);
+                    //    new Span<double>(result1,0,1000).CopyTo(Ui1);
                     //if (Result2)
-                    //    new Span<double>(result2).CopyTo(Ui2);
+                    //    new Span<double>(result2,0,1000).CopyTo(Ui2);
 
                     // 将处理后的电压数据块写入分析通道
                     if (!Analysischannel.Writer.TryWrite(new Voltage_block
@@ -572,12 +608,12 @@ namespace ConsoleApp1.Service
                         if (Result1)
                         {
                             ArrayPool<double>.Shared.Return(Ui1);
-                            result1 = null;
+                            Ui1 = null;
                         }
                         if (Result2)
                         {
                             ArrayPool<double>.Shared.Return(Ui2);
-                            result2 = null;
+                            Ui2 = null;
                         }
                     }
                 //End:;//当 ADDataTest_RunFlag 变为 false 时跳出循环到此处，此时没有必要在往Analysischannel中写数据了，但要归还数组
@@ -725,31 +761,15 @@ namespace ConsoleApp1.Service
                     //}
                     //stopwatch.Restart();
 
-                    //// 使用 span 将数据复制到预分配的数组中，避免归还数组时的影响跨线程操作
-                    //if (ch1)
-                    //    new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
-                    //if (ch2)
-                    //    new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
 
-                    // 使用最小值最大值降采样算法,对数据进行降采样
+                    //使用最小值最大值降采样算法,对数据进行降采样
                     // DownSampleMinMax(UIDisplay.Voltage1, text1);
                     if (ch1)
                         new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
                     if (ch2)
                         new Span<double>(UIDisplay.Voltage2, 0, 1000).CopyTo(text2);
 
-                    ////切换到UI线程更新图表数据
-                    //Dispatcher.UIThread.Post(() =>
-                    //{
-                    //    // 切换到 UI 线程刷新图表
-                    //    // 此处一直在触发GC
-                    //    //vm.UpdateChart1(UIDisplay.Voltage1, UIDisplay.Voltage2, 1000);
-                    //    //vm.Fifo = FIFOStatus;
 
-                    //    // 改为使用 ViewModel 的方法更新图表数据，减少对 UI 元素的直接操作
-                    //    vm.UpdateChart1(text1, text2, 1000);
-
-                    //});
 
                     // 将UI降采样数据写入共享内存
                     Program.uISharedBuffer.WriteSampleBatch(text1, text2, 1000);

@@ -117,6 +117,7 @@ namespace SharedMemoryFramework
             }
 
             // 原子更新写指针（无锁安全）
+            Interlocked.MemoryBarrier(); // 确保写入在更新索引前对其他线程可见
             Interlocked.Add(ref header->WriteIndex, batchSize);
         }
 
