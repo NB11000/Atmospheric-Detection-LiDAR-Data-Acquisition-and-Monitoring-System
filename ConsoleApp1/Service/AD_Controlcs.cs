@@ -796,12 +796,7 @@ namespace ConsoleApp1.Service
                     //stopwatch.Restart();
 
 
-<<<<<<< HEAD
-                    //使用最小值最大值降采样算法,对数据进行降采样
-                    // DownSampleMinMax(UIDisplay.Voltage1, text1);
-=======
                     // 使用抽样降采样算法,对数据进行降采样
->>>>>>> origin/master
                     if (ch1)
                         new Span<double>(UIDisplay.Voltage1, 0, 1000).CopyTo(text1);
                     if (ch2)
@@ -812,10 +807,6 @@ namespace ConsoleApp1.Service
                     //if (ch2)
                     //    DownSampleMinMax(UIDisplay.Voltage2, text2);
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/master
 
                     // 将UI降采样数据写入共享内存
                     Program.uISharedBuffer.WriteSampleBatch(text1, text2, 1000);
