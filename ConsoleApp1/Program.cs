@@ -103,9 +103,9 @@ namespace ConsoleApp1
                 // 读取 2 个命令行参数：IP + 配置文件路径
                 // ==============================================
                 // 校验参数（确保传入了完整的参数）
-                if (args.Length == 0 || !args[0].StartsWith("https://"))
+                if (args.Length == 0 || !args[0].StartsWith("http://"))
                 {
-                    logger.LogInformation("错误：未获取到有效的Grpc服务端连接地址（格式：https://IP:Port）");
+                    logger.LogInformation("错误：未获取到有效的Grpc服务端连接地址（格式：http://IP:Port）");
                     return;
                 }
                 else if (args.Length >= 2)
