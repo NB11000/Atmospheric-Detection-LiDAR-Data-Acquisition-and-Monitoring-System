@@ -39,15 +39,9 @@ namespace ConsoleApp1
         public static CaptureCardConfig deviceconfig { get; set; } = new CaptureCardConfig();
 
         /// <summary>
-        /// 配置文件读写管理器
-        /// </summary>
-        public static ConfigHelper Config;
-
-        /// <summary>
         /// 日志
         /// </summary>
-        public static ILogger logger = LoggerFactory.Create(b => b.AddConsole()
-                .SetMinimumLevel(LogLevel.Debug)).CreateLogger("运行日志"); // 初始化日志
+        public static ILogger logger {  get; set; }
 
         /// <summary>
         /// 注册DI容器 (依赖注入容器)
@@ -75,29 +69,14 @@ namespace ConsoleApp1
         /// </summary>
         static async Task Main(string[] args)
         {
-
-            //// 注册Options（绑定到CaptureCard）
-            //services.AddOptions()
-            //    .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
-
-            Console.Title = "数据采集子进程";
-            GC.RegisterForFullGCNotification(1, 1);
-            // 后台线程监控GC暂停
-            _ = Task.Run( () =>
-            {
-                while (true)
-                {
-                    var status = GC.WaitForFullGCApproach();
-                    if (status == GCNotificationStatus.Succeeded)
-                    {
-                        logger.LogWarning("GC信息: Full GC 即将触发");
-                    }
-                    Task.Delay(100).Wait();
-                }
-            });
-
             try
             {
+
+                Console.Title = "数据采集子进程";
+
+                // 初始化日志
+                logger = LoggerFactory.Create(b => b.AddConsole()
+                .SetMinimumLevel(LogLevel.Debug)).CreateLogger("运行日志"); 
 
                 // ==============================================
                 // 读取 2 个命令行参数：IP + 配置文件路径
@@ -123,6 +102,7 @@ namespace ConsoleApp1
                 ConfigHelper.ConfigFilePath = ConfigFilePath;
                 logger.LogInformation($"读取到配置文件路径：{ConfigHelper.ConfigFilePath},准备加载配置");
 
+                // 连接共享内存
                 uISharedBuffer = new UISharedBuffer();
                 uISharedBuffer.Open();
                 logger.LogInformation("连接主进程的[UI显示]专用共享内存缓冲区");
@@ -134,15 +114,8 @@ namespace ConsoleApp1
                     .AddJsonFile("DeviceConfig.json", optional: false, reloadOnChange: true)
                     .Build();
 
-                // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
-                services.AddSingleton<ConfigHelper>();
-                // 注册Options（绑定到CaptureCard）
-                services.AddOptions()
-                    .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
-                //从DI容器中获取配置文件读写管理器
-                Config = (ConfigHelper)services.BuildServiceProvider().GetRequiredService(typeof(ConfigHelper));
                 //从JSON文件读取设备配置到实体类
-                Config.ReadDeviceConfig();
+                ConfigHelper.ReadDeviceConfig();
 
 
                 //GrpcAddress = "https://localhost:10000";

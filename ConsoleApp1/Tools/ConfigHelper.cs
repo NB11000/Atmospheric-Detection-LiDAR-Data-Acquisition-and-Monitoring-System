@@ -1,4 +1,5 @@
 ﻿using ConsoleApp1.Models;
+using Grpc.Net.Client.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System;
@@ -27,20 +28,7 @@ namespace ConsoleApp1.Tools
         /// </summary>
         public static IConfigurationRoot Config;
 
-        /// <summary>
-        /// 配置读取器
-        /// </summary>
-        private readonly IOptionsMonitor<CaptureCardConfig> captureCardConfig;
 
-
-        /// <summary>
-        /// 通过构造方法依赖注入
-        /// </summary>
-        /// <param name="captureCardConfig"></param>
-        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig)
-        {
-            this.captureCardConfig = captureCardConfig;
-        }
 
         /// <summary>
         /// 将设备配置写入JSON文件（持久化）
@@ -75,19 +63,13 @@ namespace ConsoleApp1.Tools
         /// 从JSON文件读取设备配置到实体类（通过.NET配置提供程序）
         /// </summary>
         /// <returns>DeviceConfig实例</returns>
-        public void ReadDeviceConfig()
+        public static void ReadDeviceConfig()
         {
             // 刷新配置
             Config.Reload();
             // 读取"Capture card"节点下的所有配置项
             // 并将配置节绑定到DeviceConfig实体
-            Program.deviceconfig.DeviceId = captureCardConfig.CurrentValue.DeviceId;
-            Program.deviceconfig.SyncChannelIndex = captureCardConfig.CurrentValue.SyncChannelIndex;
-            Program.deviceconfig.SampleRate = captureCardConfig.CurrentValue.SampleRate;
-            Program.deviceconfig.ClockSourceIndex = captureCardConfig.CurrentValue.ClockSourceIndex;
-            Program.deviceconfig.HalfFullThreshold = captureCardConfig.CurrentValue.HalfFullThreshold;
-            Program.deviceconfig.TriggerSourceIndex = captureCardConfig.CurrentValue.TriggerSourceIndex;
-            Program.deviceconfig.RangeIndex = captureCardConfig.CurrentValue.RangeIndex;
+            Config.GetSection("CaptureCard").Bind(Program.deviceconfig);
             // 重新计算采样周期（确保值最新）
             Program.deviceconfig.RecalculateSamplePeriod();
         }
