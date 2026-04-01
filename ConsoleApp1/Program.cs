@@ -93,8 +93,8 @@ namespace ConsoleApp1
                     GrpcAddress = args[0];
                     // 第2个参数：配置文件路径
                     ConfigFilePath = args[1];
-                    logger.LogInformation("[主进程] 使用传入IP：" + GrpcAddress);
-                    logger.LogInformation("[主进程] 使用传入配置：" + ConfigFilePath);
+                    logger.LogInformation("[主进程] 传入IP：" + GrpcAddress);
+                    logger.LogInformation("[主进程] 传入配置：" + ConfigFilePath);
                 }
 
                 logger.LogInformation($"读取到完整的连接地址：{GrpcAddress}，准备启动Grpc客户端...");

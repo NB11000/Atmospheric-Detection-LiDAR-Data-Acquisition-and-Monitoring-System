@@ -1,0 +1,17 @@
+﻿{
+
+  "CaptureCard": { 
+    "DeviceId": 0,
+    "SyncChannelIndex": 2,
+    "SampleRate": 1000,
+    "ClockSourceIndex": 0,
+    "HalfFullThreshold": 5,
+    "TriggerSourceIndex": 1,
+    "RangeIndex": 0
+  },
+
+  "Radar": {
+
+  }
+
+}

@@ -1,8 +1,10 @@
-﻿using System;
+﻿using AvaloniaApplication1;
+using Microsoft.Extensions.Logging;
+using System;
 using System.IO.MemoryMappedFiles;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
-using static SharedMemoryFramework.UIRingHeader;
+using System.Threading;
 
 namespace SharedMemoryFramework
 {
@@ -23,6 +25,13 @@ namespace SharedMemoryFramework
 
 
 
+    /// <summary>
+    /// UI数据共享内存类
+    /// 作用：传递**降采样后的波形数据**（双通道）
+    /// 生产者：子进程 1MHz 批量写入1000个抽样点
+    /// 消费者：主进程 33ms 读取一帧波形
+    /// 满足 BufferLength > PixelCount → 永无覆盖、永无冲突
+    /// </summary>
     /// <summary>
     /// UI数据共享内存类
     /// 作用：传递**降采样后的波形数据**（双通道）
@@ -81,65 +90,17 @@ namespace SharedMemoryFramework
         /// <summary>
         /// 【子进程】连接共享内存
         /// </summary>
-        public void Open1()
+        public void Open()
         {
             mmf = MemoryMappedFile.OpenExisting(MapName, MemoryMappedFileRights.ReadWrite);
             accessor = mmf.CreateViewAccessor();
             accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref basePtr);
 
-            // 从头结构读取信息
             header = (UIRingHeader*)basePtr;
             pixelCount = header->PixelCount;
 
             Buffer1 = (double*)(basePtr + sizeof(UIRingHeader));
             Buffer2 = Buffer1 + header->BufferLength;
-        }
-
-        /// <summary>
-        /// 【子进程】连接共享内存
-        /// 引入重试机制，增强健壮性，适应WebAPI启动时共享内存尚未创建的情况
-        /// </summary>
-        /// <exception cref="Exception"></exception>
-        public void Open()
-        {
-            int retry = 30;      // 重试30次
-            int sleepMs = 300;   // 每次间隔300ms
-
-            //
-            for (int i = 0; i < retry; i++)
-            {
-                try
-                {
-                    // 尝试打开共享内存
-                    mmf = MemoryMappedFile.OpenExisting(
-                        MapName,
-                        MemoryMappedFileRights.ReadWrite);
-
-                    // 打开成功
-                    break;
-                }
-                catch (FileNotFoundException)
-                {
-                    // 没找到，等待后重试
-                    Thread.Sleep(sleepMs);
-                }
-            }
-
-            if (mmf == null)
-            {
-                throw new Exception("共享内存打开超时，请检查WebAPI是否已创建共享内存");
-            }
-
-            accessor = mmf.CreateViewAccessor();
-            accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref basePtr);
-
-            // 从头结构读取信息
-            header = (UIRingHeader*)basePtr;
-            pixelCount = header->PixelCount;
-
-            Buffer1 = (double*)(basePtr + sizeof(UIRingHeader));
-            Buffer2 = Buffer1 + header->BufferLength;
-
         }
 
         // ===================== 核心：批量写入1000个抽样点 =====================
@@ -149,7 +110,7 @@ namespace SharedMemoryFramework
         /// <param name="buffer1"></param>
         /// <param name="buffer2"></param>
         /// <param name="batchSize"></param>
-        public void WriteSampleBatch(double[] buffer1, double[] buffer2,int batchSize)
+        public void WriteSampleBatch(double[] buffer1, double[] buffer2, int batchSize)
         {
 
             long currentIdx = header->WriteIndex;
@@ -158,13 +119,11 @@ namespace SharedMemoryFramework
             {
                 long idx = currentIdx + i;
                 int pos = (int)(idx % header->BufferLength);
-
                 Buffer1[pos] = buffer1[i];
                 Buffer2[pos] = buffer2[i];
             }
 
             // 原子更新写指针（无锁安全）
-            Interlocked.MemoryBarrier(); // 确保写入在更新索引前对其他线程可见
             Interlocked.Add(ref header->WriteIndex, batchSize);
         }
 
@@ -172,49 +131,61 @@ namespace SharedMemoryFramework
         /// <summary>
         /// 栈上读取，无GC，无冲突
         /// </summary>
-        public void ReadLatestFrame(double* buffer1, double* buffer2)
+        public void ReadLatestFrame(ref double[] buffer1, ref double[] buffer2)
         {
+            // 使用 Volatile.Read 确保读取最新的 PixelCount 值
             int frameSize = header->PixelCount;
-            long writeIdx = header->WriteIndex;
-            // 从最新位置往前读一帧
+            // 使用 Volatile.Read 确保读取最新的 WriteIndex 值
+            long writeIdx = Volatile.Read(ref header->WriteIndex);
+
+            // 数据不足时填充默认值
+            if (writeIdx < frameSize)
+            {
+                Array.Clear(buffer1, 0, frameSize);
+                Array.Clear(buffer2, 0, frameSize);
+                return;
+            }
+
             long startIdx = writeIdx - frameSize;
+            int bufferLength = header->BufferLength;
 
             for (int i = 0; i < frameSize; i++)
             {
-                int pos = (int)((startIdx + i) % header->BufferLength);
+                // 安全的环形索引计算
+                long index = startIdx + i;
+                int pos = (int)((index % bufferLength + bufferLength) % bufferLength);
                 buffer1[i] = Buffer1[pos];
                 buffer2[i] = Buffer2[pos];
             }
         }
 
-        /// <summary>
-        /// 清空环形缓冲区（使用循环方式，兼容性更好）
-        /// </summary>
-        /// <param name="resetWriteIndex">是否重置写索引</param>
-        public void ClearBufferSafe(bool resetWriteIndex = true)
+
+        //当 writeIdx<frameSize（即数据积累不足1000个点时），startIdx 为负数
+        //C# 的 % 运算符对负数取模仍返回负数（例如 (-5) % 32768 = -5）
+        //负数索引导致指针算术错误，访问非法内存地址
+        //调试模式：CLR可能抛出 AccessViolationException 并被调试器捕获
+        //不调试直接运行模式：直接访问违规，操作系统终止进程（闪退）
+        public void 错误案例(ref double[] buffer1, ref double[] buffer2)
         {
-            if (header == null)
-                throw new InvalidOperationException("Shared memory not initialized");
+            int frameSize = header->PixelCount;        // 通常为1000
+            long writeIdx = header->WriteIndex;        // 从0开始递增
+            long startIdx = writeIdx - frameSize;      // 可能为负数！
 
-            int bufferLength = header->BufferLength;
-
-            // 清空缓冲区1
-            for (int i = 0; i < bufferLength; i++)
+            for (int i = 0; i < frameSize; i++)
             {
-                Buffer1[i] = 0.0;
+                int pos = (int)((startIdx + i) % header->BufferLength); // 负数取模产生负数索引
+                buffer1[i] = Buffer1[pos];  // 访问无效内存地址 → 访问违规
+                buffer2[i] = Buffer2[pos];
             }
+        }
 
-            // 清空缓冲区2
-            for (int i = 0; i < bufferLength; i++)
-            {
-                Buffer2[i] = 0.0;
-            }
 
-            // 重置写索引
-            if (resetWriteIndex)
-            {
-                header->WriteIndex = 0;
-            }
+        /// <summary>
+        /// 重置写指针为零，用于停止采集后清理缓冲区状态
+        /// </summary>
+        public void Reset()
+        {
+            header->WriteIndex = 0;
         }
 
         public void Dispose()
