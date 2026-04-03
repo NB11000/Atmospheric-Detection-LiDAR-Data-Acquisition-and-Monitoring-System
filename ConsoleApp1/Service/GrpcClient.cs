@@ -102,13 +102,16 @@ namespace ConsoleApp1.Service
             {
 
                 // 1. 调用服务端的Communicate双向流方法，获取流对象
-                var stream = client.Communicate(cancellationToken: _cts.Token); // 开始双向流
+                var stream = client.Communicate(); // 开始双向流
 
                 // 2. 保存客户端→服务端的响应写入器（用于发送响应/上报）
                 _responseStreamWriter = stream.RequestStream;
 
-                // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
-                var sendResponse = Task.Run(() =>
+                if(stream!=null)
+                    Program.logger.LogInformation("grpc客户端已启动");
+
+               // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
+               var sendResponse = Task.Run(() =>
                 {
                     AdResponse response = null;
                     while (!_cts.Token.IsCancellationRequested)
@@ -435,6 +438,14 @@ namespace ConsoleApp1.Service
             // 释放采集卡资源（兜底）
             if (aD_Controlcs.mHandle >= 0)
             {
+                try
+                {
+                    aD_Controlcs.stop(); // 先停止采集
+                }
+                catch (Exception ex)
+                {
+                    Program.logger.LogInformation($"停止采集时发生异常: {ex.Message}");
+                }
                 USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle);
             }
         }

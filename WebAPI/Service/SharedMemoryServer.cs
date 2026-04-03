@@ -6,7 +6,7 @@ using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace SharedMemoryFramework
+namespace WebAPISharedMemoryFramework
 {
 
     ///这是一个基于 C# 内存映射文件（MMF）实现的、无锁、无 GC、高性能的双区共享内存框架，
@@ -14,13 +14,13 @@ namespace SharedMemoryFramework
     /// <summary>
     /// 共享内存整体布局说明
     /// 内存结构：
-    /// ┌────────────
-    /// │ 内存头结构(Header)    │  固定元数据区
-    /// ├────────────
-    /// │ 通道0数据缓冲区       │  实际采样数据存储区
-    /// │ 通道1数据缓冲区       │
+    /// ┌────────────────────────
+    /// │ 内存头结构(Header)     │  固定元数据区
+    /// ├────────────────────────
+    /// │ 通道0数据缓冲区        │  实际采样数据存储区
+    /// │ 通道1数据缓冲区        │
     /// │ ...                   │
-    /// └────────────
+    /// └───────────────────────
     /// </summary>
 
 
@@ -52,7 +52,6 @@ namespace SharedMemoryFramework
         // 沿用你的原始内存布局：双通道缓冲区
         private double* Buffer1;
         private double* Buffer2;
-
         private int pixelCount;
 
         /// <summary>

@@ -1,23 +1,21 @@
 using System;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Threading;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WebAPI.Tools;
 using WebAPI.Models;
 using WebAPI.Service;
-using SharedMemoryFramework;
+using WebAPISharedMemoryFramework;
+using Grpc.Core;
 
 
 namespace WebAPI                    
@@ -41,6 +39,11 @@ namespace WebAPI
         /// </summary>
         public static WebApplication app {  get; private set; }
 
+        /// <summary>
+        /// 子进程Process实例
+        /// </summary>
+        public static Process ChildProcess { get; private set; }
+
 
         static void Main(string[] args)
         {
@@ -55,11 +58,12 @@ namespace WebAPI
 
             // Add services to the container.
 
+            // 注册Grpc服务
+            builder.Services.AddGrpc();
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
 
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<UISharedBuffer>(new UISharedBuffer());
@@ -100,7 +104,7 @@ namespace WebAPI
                 options.ListenAnyIP(5135, o =>
                 {
                     // 启用HTTP/1.1
-                    o.Protocols = HttpProtocols.Http1;
+                    o.Protocols = HttpProtocols.Http1AndHttp2;
                     // 开发环境自签名证书（HTTPS 是 HTTP/2 必需）
                     //o.UseHttps();
                 });
@@ -116,8 +120,7 @@ namespace WebAPI
             });
 
             app = builder.Build();
-
-
+            app.MapGrpcService<GrpcServiceImpl>();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -138,25 +141,102 @@ namespace WebAPI
 
             app.MapControllers();
 
-            app.MapGet("/", () => $"后台grpc服务已启动，绑定HTTP/2端口{port}，HTTP/1.1端口5135");
 
-            // 程序启动完成后，创建共享内存（必须加！）
+            // 注册应用程序启动完成后事件，创建共享内存
             app.Lifetime.ApplicationStarted.Register(() =>
             {
                 try
                 { 
                     // 从DI容器中获取UI共享内存缓冲区实例
-                    var uISharedBuffer = (UISharedBuffer)app.Services.GetRequiredService(typeof(UISharedBuffer));
+                    var uISharedBuffer = app.Services.GetRequiredService<UISharedBuffer>();
                     // 初始化UI共享内存缓冲区，并创建UI共享内存，内存映射文件
                     uISharedBuffer.Create(1000);
                     // 启动子进程，并将主进程监听的ip地址转递给子进程
-                    Tool.StartChildProcess($"http://localhost:{port}");
-                    Program.logger.LogInformation($"http://localhost:{port}");
+                    int parentProcessId = Process.GetCurrentProcess().Id;
+                    ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);
+                    Program.logger.LogInformation($"子进程已启动，PID={ChildProcess?.Id}, 监听地址: http://localhost:{port}");
                 }
                 catch (Exception ex)
                 {
                     Program.logger.LogInformation(ex.Message);
                 }
+            });
+
+            // 注册应用程序停止事件，优雅关闭子进程
+            app.Lifetime.ApplicationStopping.Register(() =>
+            {
+                try
+                {
+                    Program.logger.LogInformation("应用程序正在停止，开始关闭子进程...");
+                    
+                    // 检查子进程是否存在且未退出
+                    if (ChildProcess != null && !ChildProcess.HasExited)
+                    {
+                        // 获取GrpcService实例
+                        var grpcService = app.Services.GetRequiredService<GrpcServiceImpl>();
+                        try
+                        {
+                            // 向子进程发送EXIT命令，等待响应
+                            var response = grpcService.SendCommandToClientAndWaitResponse(
+                                "数据采集子进程", 
+                                "EXIT", 
+                                CancellationToken.None).GetAwaiter().GetResult();
+                            
+                            if (response.Content == "EXIT_OK")
+                            {
+                                Program.logger.LogInformation("子进程已确认退出，等待进程退出...");
+                                // 等待子进程退出，最多5秒
+                                if (ChildProcess.WaitForExit(5000))
+                                {
+                                    Program.logger.LogInformation($"子进程已优雅退出，退出代码: {ChildProcess.ExitCode}");
+                                }
+                                else
+                                {
+                                    Program.logger.LogWarning("子进程未在5秒内退出，强制终止");
+                                    ChildProcess.Kill();
+                                }
+                            }
+                            else
+                            {
+                                Program.logger.LogWarning($"子进程返回非EXIT_OK响应: {response.Content}，强制终止");
+                                ChildProcess.Kill();
+                            }
+                        }
+                        catch (Exception ex) when (ex is TimeoutException || ex is RpcException || ex is Exception)
+                        {
+                            Program.logger.LogError($"通知子进程退出失败: {ex.Message}，强制终止子进程");
+                            ChildProcess.Kill();
+                        }
+                    }
+                    else if (ChildProcess != null && ChildProcess.HasExited)
+                    {
+                        Program.logger.LogInformation($"子进程已退出，退出代码: {ChildProcess.ExitCode}");
+                    }
+                    else
+                    {
+                        Program.logger.LogInformation("未找到子进程实例");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.logger.LogError($"关闭子进程时发生异常: {ex.Message}");
+                }
+                finally
+                {
+                    // 清理子进程资源
+                    if (ChildProcess != null)
+                    {
+                        ChildProcess.Dispose();
+                        ChildProcess = null;
+                    }
+                }
+            });
+
+            app.MapGet("/", () => $"后台grpc服务已启动，绑定HTTP/2端口{port}，HTTP/1.1端口5135");
+
+            app.MapGet("/open", async (GrpcServiceImpl grpc) =>
+            {
+                await grpc.SendCommandToClientAndWaitResponse("数据采集子进程", "OPEN_DEVICE");
             });
 
             app.Run();
