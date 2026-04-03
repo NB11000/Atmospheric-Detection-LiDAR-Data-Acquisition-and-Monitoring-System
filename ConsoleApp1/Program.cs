@@ -192,7 +192,7 @@ namespace ConsoleApp1
                 }
 
                 // 使用WaitForExitAsync异步等待父进程退出（事件驱动，非轮询）
-                logger.LogInformation($"等待父进程退出...");
+                // logger.LogInformation($"等待父进程退出...");
                 await parentProcess.WaitForExitAsync(cancellationToken);
 
                 // 检查是否是因为取消令牌而退出
@@ -242,7 +242,7 @@ namespace ConsoleApp1
                     aD_Controlcs.mHandle = -1;
                     logger.LogInformation("采集卡设备已关闭");
                 }
-                
+
                 // 3. 释放共享内存资源
                 if (uISharedBuffer != null)
                 {

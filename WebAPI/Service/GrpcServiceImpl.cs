@@ -223,7 +223,7 @@ namespace WebAPI.Service
 
 
         /// <summary>
-        /// 获取当前所有已连接的客户端ID列表
+        /// 获取当前grpc服务已连接的客户端列表（用于UI展示或管理）
         /// </summary>
         /// <returns>客户端ID数组</returns>
         public string[] GetConnectedClients() => _clientStreams.Keys.ToArray();
