@@ -11,11 +11,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Sockets;
 using WebAPI.Tools;
 using WebAPI.Models;
 using WebAPI.Service;
 using WebAPISharedMemoryFramework;
 using Grpc.Core;
+
 
 
 namespace WebAPI                    
@@ -56,8 +59,8 @@ namespace WebAPI
 
             Console.WriteLine($"环境: {env}");  // 输出: Development
 
+#region 服务器配置
             // Add services to the container.
-
             // 注册Grpc服务
             builder.Services.AddGrpc();
             builder.Services.AddControllers();
@@ -100,11 +103,11 @@ namespace WebAPI
                     //o.UseHttps();
                 });
 
-                //供局域网使用的HTTP/1.1端口（固定5135，方便前端调用）
+                //供局域网使用的端口（固定5135，方便前端调用）
                 options.ListenAnyIP(5135, o =>
                 {
-                    // 启用HTTP/1.1
-                    o.Protocols = HttpProtocols.Http1AndHttp2;
+                    // 启用HTTP/1.1与HTTP/2（解决协议不匹配问题）
+                    o.Protocols = HttpProtocols.Http1;
                     // 开发环境自签名证书（HTTPS 是 HTTP/2 必需）
                     //o.UseHttps();
                 });
@@ -118,6 +121,19 @@ namespace WebAPI
                 //    o.UseHttps();
                 //});
             });
+ #endregion
+
+            // ========== 打印本机局域网 IP ==========
+            Console.WriteLine("\n==================================");
+            Console.WriteLine("本机局域网地址：");
+            foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    Console.WriteLine("👉 " + ip.ToString()+":5135");
+                }
+            }
+            Console.WriteLine("==================================\n");
 
             app = builder.Build();
             app.MapGrpcService<GrpcServiceImpl>();

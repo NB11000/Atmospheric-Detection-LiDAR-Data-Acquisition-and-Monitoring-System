@@ -215,10 +215,19 @@ namespace ConsoleApp1.Service
                     // 开始采集
                     case "START_AD":
 
-                        aD_Controlcs.start();
-                        response.Content = "AD_STARTED";
-                        Program.logger.LogInformation($"AD_STARTED");
-                        break;
+                        if (aD_Controlcs.mHandle <= 0)
+                        {
+                            response.Content = "采集卡未打开，无法开始采集";
+                            Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
+                            break;
+                        }
+                        else
+                        {
+                            aD_Controlcs.start();
+                            response.Content = "AD_STARTED";
+                            Program.logger.LogInformation($"AD_STARTED");
+                            break;             
+                        }
 
                     // 停止采集
                     case "STOP_AD":
