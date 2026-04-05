@@ -202,20 +202,23 @@ namespace WebAPI.Controllers
         }
 
         /// <summary>
-        /// 发送读取配置指令
+        /// 发送读取配置指令，并通过配置助手读取配置文件更新全局配置实体，
+        /// 然后返回最新的全局配置实体（包含采集卡配置）给前端，方便前端展示当前配置状态
         /// </summary>
         /// <returns>客户端响应</returns>
         [HttpPost("config/read")]
         public async Task<IActionResult> Config()
         {
-            await SendCommand("CONFIG");
+            await SendCommand("CONFIG_READ");
             // 使用注入的配置助手读取配置文件并更新全局配置实体
             _configHelper.ReadDeviceConfig();
             return Ok(Program.CurrentConfig); // 返回最新的全局配置实体（包含采集卡配置）给前端，方便前端展示当前配置状态  
         }
 
         /// <summary>
-        /// 更新采集卡配置
+        /// 更新采集卡配置，同时通知数据采集子进程配置已更新，
+        /// 然后更新内存中的全局配置实体，
+        /// 再向前端返回最新的全局配置实体（包含采集卡配置），方便前端展示当前配置状态；
         /// </summary>
         /// <param name="newConfig">新的采集卡配置</param>
         /// <returns>更新后的配置</returns>
@@ -229,13 +232,11 @@ namespace WebAPI.Controllers
 
             try
             {
-                _logger.LogInformation($"更新采集卡配置，设备ID：{newConfig.DeviceId}，采样率：{newConfig.SampleRate}kHz");
-                
                 // 1. 写入配置文件
                 _configHelper.WriteCaptureCardConfig(newConfig);
                 
                 // 2. 通知数据采集子进程配置已更新
-                await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "CONFIG");
+                await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "CONFIG_UPDATE");
                 
                 // 3. 更新内存中的全局配置
                 _configHelper.ReadDeviceConfig();

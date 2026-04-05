@@ -265,12 +265,19 @@ namespace ConsoleApp1.Service
                         break;
 
                     // 主进程修改配置通知
-                    case "CONFIG":
+                    case "CONFIG_UPDATE":
 
                         //读取配置
                         ConfigHelper.ReadDeviceConfig();
                         Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
                         response.Content = "配置已更新";
+                        break;
+
+                     case "CONFIG_READ":
+
+                        //读取配置
+                        ConfigHelper.ReadDeviceConfig();
+                        response.Content = "配置已读取";
                         break;
 
 
