@@ -4,6 +4,8 @@ using AvaloniaApplication1.Grpc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using WebAPI.Tools;
+using WebAPI.Models;
 
 namespace WebAPI.Controllers
 {
@@ -23,16 +25,19 @@ namespace WebAPI.Controllers
 
         private readonly GrpcServiceImpl _grpcService;
         private readonly ILogger<ClientController> _logger;
+        private readonly ConfigHelper _configHelper;
 
         /// <summary>
-        /// 构造函数，注入gRPC服务和日志器
+        /// 构造函数，注入gRPC服务、日志器和配置助手
         /// </summary>
         /// <param name="grpcService">gRPC服务实例</param>
         /// <param name="logger">日志记录器</param>
-        public ClientController(GrpcServiceImpl grpcService, ILogger<ClientController> logger)
+        /// <param name="configHelper">配置文件助手</param>
+        public ClientController(GrpcServiceImpl grpcService, ILogger<ClientController> logger, ConfigHelper configHelper)
         {
             _grpcService = grpcService;
             _logger = logger;
+            _configHelper = configHelper;
         }
 
         /// <summary>
@@ -200,10 +205,77 @@ namespace WebAPI.Controllers
         /// 发送读取配置指令
         /// </summary>
         /// <returns>客户端响应</returns>
-        [HttpPost("config")]
+        [HttpPost("config/read")]
         public async Task<IActionResult> Config()
         {
-            return await SendCommand("CONFIG");
+            await SendCommand("CONFIG");
+            // 使用注入的配置助手读取配置文件并更新全局配置实体
+            _configHelper.ReadDeviceConfig();
+            return Ok(Program.CurrentConfig); // 返回最新的全局配置实体（包含采集卡配置）给前端，方便前端展示当前配置状态  
+        }
+
+        /// <summary>
+        /// 更新采集卡配置
+        /// </summary>
+        /// <param name="newConfig">新的采集卡配置</param>
+        /// <returns>更新后的配置</returns>
+        [HttpPost("config/update")]
+        public async Task<IActionResult> UpdateConfig([FromBody] CaptureCardConfig newConfig)
+        {
+            if (newConfig == null)
+            {
+                return BadRequest("配置不能为空");
+            }
+
+            try
+            {
+                _logger.LogInformation($"更新采集卡配置，设备ID：{newConfig.DeviceId}，采样率：{newConfig.SampleRate}kHz");
+                
+                // 1. 写入配置文件
+                _configHelper.WriteCaptureCardConfig(newConfig);
+                
+                // 2. 通知数据采集子进程配置已更新
+                await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "CONFIG");
+                
+                // 3. 更新内存中的全局配置
+                _configHelper.ReadDeviceConfig();
+                
+                _logger.LogInformation("采集卡配置更新完成");
+                return Ok(Program.CurrentConfig);
+            }
+            catch (Exception ex) when (ex.Message.Contains("未连接"))
+            {
+                _logger.LogWarning($"数据采集子进程未连接，但配置已保存");
+                // 即使子进程未连接，配置也已保存，返回成功
+                _configHelper.ReadDeviceConfig();
+                return Ok(Program.CurrentConfig);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"更新采集卡配置时发生异常");
+                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 获取默认采集卡配置（注意此时并没有更新全局配置实体，和更新配置文件）
+        /// </summary>
+        /// <returns>默认配置</returns>
+        [HttpGet("config/default")]
+        public IActionResult GetDefaultConfig()
+        {
+            try
+            {
+                _logger.LogInformation("获取默认采集卡配置");
+                // 创建新的CaptureCardConfig实例，构造函数会自动设置默认值
+                var defaultConfig = new CaptureCardConfig();
+                return Ok(defaultConfig);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取默认配置时发生异常");
+                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+            }
         }
 
         /// <summary>

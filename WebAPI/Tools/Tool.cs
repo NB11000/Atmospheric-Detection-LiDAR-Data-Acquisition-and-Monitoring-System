@@ -1,3 +1,4 @@
+using Serilog;
 using System;
 using System.Diagnostics;
 using System.Net;
@@ -37,7 +38,7 @@ public class Tool
             // 校验文件是否存在
             if (!File.Exists(childExePath))
             {
-                Program.logger.LogError($"自动查找子进程失败：未找到文件 {childExePath}");
+                Log.Error($"自动查找子进程失败：未找到文件 {childExePath}");
                 return null;
             }
 
@@ -59,7 +60,7 @@ public class Tool
             // 启动进程
             p.Start();
 
-            Program.logger.LogInformation($"子进程已启动，传递参数：IP={bindIp}，父进程ID={parentProcessId}，等待子进程连接...");
+            Log.Information($"子进程已启动，传递参数：IP={bindIp}，父进程ID={parentProcessId}，等待子进程连接...");
             return p;
         }
 

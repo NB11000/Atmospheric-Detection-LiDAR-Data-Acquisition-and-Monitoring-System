@@ -18,8 +18,9 @@ using WebAPI.Models;
 using WebAPI.Service;
 using WebAPISharedMemoryFramework;
 using Grpc.Core;
-
-
+using Serilog;
+using Serilog.Sinks.InMemory;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace WebAPI                    
 {
@@ -31,11 +32,9 @@ namespace WebAPI
         public static CaptureCardConfig CurrentConfig { get; set; } = new CaptureCardConfig();
 
         /// <summary>
-        /// 日志
+        /// 初始化日志 ：日志不再手动创建，统一由 DI 注入
         /// </summary>
-        public static ILogger logger {  get; private set; } =                        
-                logger = LoggerFactory.Create(b => b.AddConsole()
-                .SetMinimumLevel(LogLevel.Debug)).CreateLogger("[服务器]运行日志"); // 初始化日志
+        // public static ILogger logger { get; set; } = null!;
 
         /// <summary>
         /// Asp.net core 服务器实例
@@ -50,16 +49,30 @@ namespace WebAPI
 
         static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
 
-            // 读取具体值
-            var env = builder.Configuration["ASPNETCORE_ENVIRONMENT"];
-            // 动态获取10000以上端口号
-            int port = Tool.GetAvailablePort(minPort: 10000);
+            // 配置日志（程序启动前就配置）
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()                  // 默认日志级别
+                .Enrich.FromLogContext()                     //  enrich 上下文信息
+                .WriteTo.Console()                           // 输出到控制台
+                 .WriteTo.File(
+                    path: "logs/log-.txt",                   // 日志文件路径
+                    rollingInterval: RollingInterval.Day,    // 按天切割
+                    fileSizeLimitBytes: 10485760,            // 单个文件最大 10MB
+                    retainedFileCountLimit: 31,              // 最多保留31天
+                    encoding: System.Text.Encoding.UTF8       // UTF8 避免中文乱码
+                )
+                 .WriteTo.InMemory()
+                .CreateLogger();
 
-            Console.WriteLine($"环境: {env}");  // 输出: Development
 
 #region 服务器配置
+
+            var builder = WebApplication.CreateBuilder(args);
+            // 先清空所有系统默认日志（必须第一步！）
+            builder.Logging.ClearProviders();
+            // 用 Serilog 替换默认日志（必须）
+            builder.Host.UseSerilog();
             // Add services to the container.
             // 注册Grpc服务
             builder.Services.AddGrpc();
@@ -69,10 +82,10 @@ namespace WebAPI
             builder.Services.AddSwaggerGen();
 
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
-            builder.Services.AddSingleton<UISharedBuffer>(new UISharedBuffer());
+            builder.Services.AddSingleton<UISharedBuffer>();
             // 初始化Grpc服务端通信模块
             // 注册GrpcServiceImpl实例（GrpcService）为单例服务
-            builder.Services.AddSingleton<GrpcServiceImpl>(new GrpcServiceImpl());
+            builder.Services.AddSingleton<GrpcServiceImpl>();
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<ConfigHelper>();
             // 注册Options（绑定到CaptureCard）
@@ -91,6 +104,8 @@ namespace WebAPI
                 });
             } */
 
+            // 动态获取10000以上端口号
+            int port = Tool.GetAvailablePort(minPort: 10000);
 
             builder.WebHost.ConfigureKestrel(options =>
             {
@@ -121,21 +136,15 @@ namespace WebAPI
                 //    o.UseHttps();
                 //});
             });
- #endregion
+#endregion
 
-            // ========== 打印本机局域网 IP ==========
-            Console.WriteLine("\n==================================");
-            Console.WriteLine("本机局域网地址：");
-            foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
-            {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    Console.WriteLine("👉 " + ip.ToString()+":5135");
-                }
-            }
-            Console.WriteLine("==================================\n");
+            // 读取具体值
+            var env = builder.Configuration["ASPNETCORE_ENVIRONMENT"];
+            Console.WriteLine($"环境: {env}");  // 输出: Development
 
             app = builder.Build();
+
+
             app.MapGrpcService<GrpcServiceImpl>();
 
             // Configure the HTTP request pipeline.
@@ -150,6 +159,17 @@ namespace WebAPI
                 Console.WriteLine("当前环境: 生产环境");
             }
 
+            // ========== 打印本机局域网 IP ==========
+            Console.WriteLine("\n==================================");
+            Console.WriteLine("本机局域网地址：");
+            foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    Console.WriteLine("👉 " + ip.ToString() + ":5135");
+                }
+            }
+            Console.WriteLine("==================================\n");
 
             app.UseHttpsRedirection();
 
@@ -167,14 +187,18 @@ namespace WebAPI
                     var uISharedBuffer = app.Services.GetRequiredService<UISharedBuffer>();
                     // 初始化UI共享内存缓冲区，并创建UI共享内存，内存映射文件
                     uISharedBuffer.Create(1000);
+                    // 从DI容器中获取配置文件读写辅助类实例
+                    var configHelper = app.Services.GetRequiredService<ConfigHelper>();
+                    // 读取配置文件并更新全局配置实体
+                    configHelper.ReadDeviceConfig();
                     // 启动子进程，并将主进程监听的ip地址转递给子进程
                     int parentProcessId = Process.GetCurrentProcess().Id;
                     ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);
-                    Program.logger.LogInformation($"子进程已启动，PID={ChildProcess?.Id}, 监听地址: http://localhost:{port}");
+                    Log.Information($"子进程已启动，PID={ChildProcess?.Id}, 监听地址: http://localhost:{port}");
                 }
                 catch (Exception ex)
                 {
-                    Program.logger.LogInformation(ex.Message);
+                    Log.Information(ex.Message);
                 }
             });
 
@@ -183,81 +207,76 @@ namespace WebAPI
             {
                 try
                 {
-                    Program.logger.LogInformation("应用程序正在停止，开始关闭子进程...");
-                    
-                    // 检查子进程是否存在且未退出
-                    if (ChildProcess != null && !ChildProcess.HasExited)
+                    if (ChildProcess == null)
                     {
-                        // 获取GrpcService实例
-                        var grpcService = app.Services.GetRequiredService<GrpcServiceImpl>();
-                        try
+                        Log.Information("未找到子进程实例");
+                        return;
+                    }
+
+                    if (ChildProcess.HasExited)
+                    {
+                        Log.Information($"子进程已退出，退出代码: {ChildProcess.ExitCode}");
+                        return;
+                    }
+
+                    Log.Information("应用程序正在停止，开始关闭子进程...");
+                    var grpcService = app.Services.GetRequiredService<GrpcServiceImpl>();
+
+                    try
+                    {
+                        // 发送退出指令并等待响应
+                        var response = grpcService.SendCommandToClientAndWaitResponse(
+                            "数据采集子进程",
+                            "EXIT",
+                            CancellationToken.None).GetAwaiter().GetResult();
+
+                        if (response.Content == "EXIT_OK")
                         {
-                            // 向子进程发送EXIT命令，等待响应
-                            var response = grpcService.SendCommandToClientAndWaitResponse(
-                                "数据采集子进程", 
-                                "EXIT", 
-                                CancellationToken.None).GetAwaiter().GetResult();
-                            
-                            if (response.Content == "EXIT_OK")
+                            Log.Information("子进程已确认退出，等待进程退出...");
+                            if (ChildProcess.WaitForExit(5000))
                             {
-                                Program.logger.LogInformation("子进程已确认退出，等待进程退出...");
-                                // 等待子进程退出，最多5秒
-                                if (ChildProcess.WaitForExit(5000))
-                                {
-                                    Program.logger.LogInformation($"子进程已优雅退出，退出代码: {ChildProcess.ExitCode}");
-                                }
-                                else
-                                {
-                                    Program.logger.LogWarning("子进程未在5秒内退出，强制终止");
-                                    ChildProcess.Kill();
-                                }
+                                Log.Information($"子进程已优雅退出，退出代码: {ChildProcess.ExitCode}");
                             }
                             else
                             {
-                                Program.logger.LogWarning($"子进程返回非EXIT_OK响应: {response.Content}，强制终止");
+                                Log.Warning("子进程未在5秒内退出，强制终止");
                                 ChildProcess.Kill();
                             }
                         }
-                        catch (Exception ex) when (ex is TimeoutException || ex is RpcException || ex is Exception)
+                        else
                         {
-                            Program.logger.LogError($"通知子进程退出失败: {ex.Message}，强制终止子进程");
+                            Log.Warning($"子进程返回非EXIT_OK响应: {response.Content}，强制终止");
                             ChildProcess.Kill();
                         }
                     }
-                    else if (ChildProcess != null && ChildProcess.HasExited)
+                    catch (Exception ex)
                     {
-                        Program.logger.LogInformation($"子进程已退出，退出代码: {ChildProcess.ExitCode}");
-                    }
-                    else
-                    {
-                        Program.logger.LogInformation("未找到子进程实例");
+                        Log.Error($"通知子进程退出失败: {ex.Message}，强制终止子进程");
+                        ChildProcess.Kill();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Program.logger.LogError($"关闭子进程时发生异常: {ex.Message}");
+                    Log.Error($"关闭子进程时发生异常: {ex.Message}");
                 }
                 finally
                 {
-                    // 清理子进程资源
-                    if (ChildProcess != null)
-                    {
-                        ChildProcess.Dispose();
-                        ChildProcess = null;
-                    }
+                    // 统一资源清理
+                    ChildProcess?.Dispose();
+                    ChildProcess = null;
                 }
             });
 
             app.MapGet("/", () => $"后台grpc服务已启动，绑定HTTP/2端口{port}，HTTP/1.1端口5135");
 
-            app.MapGet("/open", async (GrpcServiceImpl grpc) =>
+             app.MapGet("/open", async (GrpcServiceImpl grpc) =>
             {
                 await grpc.SendCommandToClientAndWaitResponse("数据采集子进程", "OPEN_DEVICE");
             });
 
+
             app.Run();
 
-            
 
 
         }

@@ -270,6 +270,7 @@ namespace ConsoleApp1.Service
                         //读取配置
                         ConfigHelper.ReadDeviceConfig();
                         Program.logger.LogInformation($"读取到设备编号：{Program.deviceconfig.DeviceId},准备加载配置");
+                        response.Content = "配置已更新";
                         break;
 
 

@@ -13,6 +13,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using WebAPI;
+using WebAPI.Controllers;
 using WebAPI.Models;
 
 namespace WebAPI.Tools
@@ -45,14 +46,17 @@ namespace WebAPI.Tools
         /// </summary>
         private readonly IOptionsMonitor<CaptureCardConfig> captureCardConfig;
 
+        private readonly ILogger<ConfigHelper> _logger;
+
 
         /// <summary>
         /// 通过构造方法依赖注入
         /// </summary>
         /// <param name="captureCardConfig"></param>
-        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig)
+        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig, ILogger<ConfigHelper> logger)
         {
             this.captureCardConfig = captureCardConfig;
+            _logger = logger;
         }
 
         /// <summary>
@@ -168,7 +172,7 @@ namespace WebAPI.Tools
                 }
 
 
-                Program.logger.LogInformation($"文件已写入：{ConfigFilePath} | 最后修改时间：{File.GetLastWriteTime(ConfigFilePath)}");
+                _logger.LogInformation($"文件已写入：{ConfigFilePath} | 最后修改时间：{File.GetLastWriteTime(ConfigFilePath)}");
             }
             catch (UnauthorizedAccessException ex)
             {
