@@ -50,8 +50,15 @@ namespace WebAPI
         static void Main(string[] args)
         {
 
+
+#region 服务器配置
+
+            var builder = WebApplication.CreateBuilder(args);
+            // 先清空所有系统默认日志（必须第一步！）
+            builder.Logging.ClearProviders();
+
             // 配置日志（程序启动前就配置）
-            Log.Logger = new LoggerConfiguration()
+/*             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()                  // 默认日志级别
                 .Enrich.FromLogContext()                     //  enrich 上下文信息
                 .WriteTo.Console()                           // 输出到控制台
@@ -63,16 +70,26 @@ namespace WebAPI
                     encoding: System.Text.Encoding.UTF8       // UTF8 避免中文乱码
                 )
                  .WriteTo.InMemory()
-                .CreateLogger();
+                .CreateLogger(); */
 
-
-#region 服务器配置
-
-            var builder = WebApplication.CreateBuilder(args);
-            // 先清空所有系统默认日志（必须第一步！）
-            builder.Logging.ClearProviders();
             // 用 Serilog 替换默认日志（必须）
-            builder.Host.UseSerilog();
+            builder.Host.UseSerilog((context, loggerConfig) =>
+            {
+                // 配置Serilog日志
+                loggerConfig
+                    .MinimumLevel.Information()                  // 默认日志级别
+                    .Enrich.FromLogContext()                     //  enrich 上下文信息
+                    .WriteTo.Console()                           // 输出到控制台
+                    .WriteTo.File(
+                        path: "logs/log-.txt",                   // 日志文件路径
+                        rollingInterval: RollingInterval.Day,    // 按天切割
+                        fileSizeLimitBytes: 10485760,            // 单个文件最大 10MB
+                        retainedFileCountLimit: 31,              // 最多保留31天
+                        encoding: System.Text.Encoding.UTF8       // UTF8 避免中文乱码
+                    )
+                    // ✅ 关键：内存日志必须在这里配置，才能全局生效
+                    .WriteTo.InMemory();// 强制写入全局公开的内存日志
+            });
             // Add services to the container.
             // 注册Grpc服务
             builder.Services.AddGrpc();
