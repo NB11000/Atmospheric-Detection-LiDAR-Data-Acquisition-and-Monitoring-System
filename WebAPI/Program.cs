@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using WebAPI.Tools;
 using WebAPI.Models;
 using WebAPI.Service;
@@ -139,7 +140,7 @@ namespace WebAPI
                 options.ListenAnyIP(5135, o =>
                 {
                     // 启用HTTP/1.1与HTTP/2（解决协议不匹配问题）
-                    o.Protocols = HttpProtocols.Http1;
+                    o.Protocols = HttpProtocols.Http1AndHttp2;
                     // 开发环境自签名证书（HTTPS 是 HTTP/2 必需）
                     //o.UseHttps();
                 });
@@ -193,6 +194,30 @@ namespace WebAPI
             app.UseAuthorization();
 
             app.MapControllers();
+
+            // 启用WebSocket支持
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(30),
+                AllowedOrigins = { "http://localhost:5135", "http://localhost:8080" } // 允许的源
+            });
+            
+            // WebSocket端点：实时UI数据流
+            app.Map("/ws/ui-data", async (HttpContext context) =>
+            {
+                if (context.WebSockets.IsWebSocketRequest)
+                {
+                    using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+                    // 从服务容器获取UI共享内存缓冲区
+                    var uiSharedBuffer = context.RequestServices.GetRequiredService<UISharedBuffer>();
+                    await HandleWebSocketConnection(webSocket, uiSharedBuffer, context.RequestAborted);
+                }
+                else
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await context.Response.WriteAsync("此端点仅支持WebSocket连接");
+                }
+            });
 
 
             // 注册应用程序启动完成后事件，创建共享内存
@@ -272,10 +297,6 @@ namespace WebAPI
                         ChildProcess.Kill();
                     }
                 }
-                catch (Exception ex)
-                {
-                    Log.Error($"关闭子进程时发生异常: {ex.Message}");
-                }
                 finally
                 {
                     // 统一资源清理
@@ -293,10 +314,77 @@ namespace WebAPI
 
 
             app.Run();
+        }
 
-
-
+        /// <summary>
+        /// 处理WebSocket连接，从共享内存读取数据并发送给客户端
+        /// </summary>
+        private static async Task HandleWebSocketConnection(
+            WebSocket webSocket, 
+            UISharedBuffer uiSharedBuffer,
+            CancellationToken cancellationToken)
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            var buffer = new byte[16000]; // 1000点×2通道×8字节
+            var channel1Buffer = new double[1000];
+            var channel2Buffer = new double[1000];
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            try
+            {
+                logger.LogInformation("WebSocket UI数据流连接已建立");
+                
+                while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+                {
+                    // 控制发送频率：每33毫秒一帧
+                    var elapsed = stopwatch.ElapsedMilliseconds;
+                    if (elapsed < 33)
+                    {
+                        await Task.Delay(1, cancellationToken);
+                        continue;
+                    }
+                    stopwatch.Restart();
+                    
+                    // 从共享内存读取最新UI数据帧
+                    uiSharedBuffer.ReadLatestFrame(ref channel1Buffer, ref channel2Buffer);
+                    
+                    // 将双精度数组复制到字节缓冲区
+                    unsafe
+                    {
+                        fixed (double* pCh1 = channel1Buffer, pCh2 = channel2Buffer)
+                        fixed (byte* pBuffer = buffer)
+                        {
+                            double* dest = (double*)pBuffer;
+                            for (int i = 0; i < 1000; i++) dest[i] = pCh1[i];
+                            for (int i = 0; i < 1000; i++) dest[1000 + i] = pCh2[i];
+                        }
+                    }
+                    
+                    // 发送二进制帧
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(buffer, 0, buffer.Length),
+                        WebSocketMessageType.Binary,
+                        endOfMessage: true,
+                        cancellationToken);
+                    
+                    // 可选：接收客户端控制指令（非阻塞检查）
+                    // 注意：WebSocket类没有Available属性，可以通过异步接收实现
+                    // 此处暂不实现双向通信
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("WebSocket连接已取消");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "WebSocket连接处理异常");
+            }
+            finally
+            {
+                logger.LogInformation("WebSocket UI数据流连接已关闭");
+                stopwatch.Stop();
+            }
         }
     }
 }
-
