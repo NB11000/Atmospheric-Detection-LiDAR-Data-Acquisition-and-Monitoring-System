@@ -87,15 +87,15 @@ public class Tool
                 
                 while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
                 {
+
                     // 控制发送频率：每33毫秒一帧
-                    var elapsed = stopwatch.ElapsedMilliseconds;
-                    if (elapsed < 33)
+                    var waitTime = 33 - stopwatch.ElapsedMilliseconds;
+                    if (waitTime > 0)
                     {
-                        await Task.Delay(1, cancellationToken);
-                        continue;
+                        await Task.Delay((int)waitTime, cancellationToken);
                     }
                     stopwatch.Restart();
-                    
+                                        
                     // 从共享内存读取最新UI数据帧
                     uiSharedBuffer.ReadLatestFrame(ref channel1Buffer, ref channel2Buffer);
                     
