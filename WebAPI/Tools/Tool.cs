@@ -3,6 +3,8 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
+using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Tools;
 
@@ -62,6 +64,78 @@ public class Tool
 
             Log.Information($"子进程已启动，传递参数：IP={bindIp}，父进程ID={parentProcessId}，等待子进程连接...");
             return p;
+        }
+
+
+        /// <summary>
+        /// 处理WebSocket连接，从共享内存读取数据并发送给客户端
+        /// </summary>
+        public static async Task HandleWebSocketConnection(
+            WebSocket webSocket, 
+            UISharedBuffer uiSharedBuffer,
+            CancellationToken cancellationToken)
+        {
+            var logger = Program.app.Services.GetRequiredService<ILogger<Program>>();
+            var buffer = new byte[16000]; // 1000点×2通道×8字节
+            var channel1Buffer = new double[1000];
+            var channel2Buffer = new double[1000];
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            try
+            {
+                logger.LogInformation("WebSocket UI数据流连接已建立");
+                
+                while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+                {
+                    // 控制发送频率：每33毫秒一帧
+                    var elapsed = stopwatch.ElapsedMilliseconds;
+                    if (elapsed < 33)
+                    {
+                        await Task.Delay(1, cancellationToken);
+                        continue;
+                    }
+                    stopwatch.Restart();
+                    
+                    // 从共享内存读取最新UI数据帧
+                    uiSharedBuffer.ReadLatestFrame(ref channel1Buffer, ref channel2Buffer);
+                    
+                    // 将双精度数组复制到字节缓冲区
+                    unsafe
+                    {
+                        fixed (double* pCh1 = channel1Buffer, pCh2 = channel2Buffer)
+                        fixed (byte* pBuffer = buffer)
+                        {
+                            double* dest = (double*)pBuffer;
+                            for (int i = 0; i < 1000; i++) dest[i] = pCh1[i];
+                            for (int i = 0; i < 1000; i++) dest[1000 + i] = pCh2[i];
+                        }
+                    }
+                    
+                    // 发送二进制帧
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(buffer, 0, buffer.Length),
+                        WebSocketMessageType.Binary,
+                        endOfMessage: true,
+                        cancellationToken);
+                    
+                    // 可选：接收客户端控制指令（非阻塞检查）
+                    // 注意：WebSocket类没有Available属性，可以通过异步接收实现
+                    // 此处暂不实现双向通信
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("WebSocket连接已取消");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "WebSocket连接处理异常");
+            }
+            finally
+            {
+                logger.LogInformation("WebSocket UI数据流连接已关闭");
+                stopwatch.Stop();
+            }
         }
 
 }
