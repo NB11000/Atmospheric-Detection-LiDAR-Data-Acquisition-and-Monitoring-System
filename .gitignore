@@ -34,3 +34,6 @@ Thumbs.db
 **/obj/Debug/**/ref/
 **/obj/Debug/**/refint/
 WebAPI/logs
+
+
+Properties/
