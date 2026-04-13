@@ -46,6 +46,11 @@ namespace WebAPI.Tools
         /// </summary>
         private readonly IOptionsMonitor<CaptureCardConfig> captureCardConfig;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        private readonly IOptionsMonitor<RadarConfig> radarConfig;
+
         private readonly ILogger<ConfigHelper> _logger;
 
 
@@ -53,18 +58,20 @@ namespace WebAPI.Tools
         /// 通过构造方法依赖注入
         /// </summary>
         /// <param name="captureCardConfig"></param>
-        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig, ILogger<ConfigHelper> logger)
+        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig, IOptionsMonitor<RadarConfig> radarConfig, ILogger<ConfigHelper> logger)
         {
             this.captureCardConfig = captureCardConfig;
+            this.radarConfig = radarConfig;
             _logger = logger;
         }
 
         /// <summary>
-        /// 从JSON文件读取设备配置（通过.NET配置提供程序）
+        /// 从JSON文件读取采集卡设备配置（通过.NET配置提供程序）
         /// </summary>
         /// <returns>DeviceConfig实例</returns>
         public void ReadDeviceConfig()
         {
+            ConfigHelper.Config.Reload(); // 重新加载配置文件，确保全局配置实体更新
             // 读取"Capture card"节点下的所有配置项
             Program.CurrentConfig.DeviceId = captureCardConfig.CurrentValue.DeviceId;
             Program.CurrentConfig.SyncChannelIndex = captureCardConfig.CurrentValue.SyncChannelIndex;
@@ -75,6 +82,19 @@ namespace WebAPI.Tools
             Program.CurrentConfig.RangeIndex = captureCardConfig.CurrentValue.RangeIndex;
             // 重新计算采样周期（确保值最新）
             Program.CurrentConfig.RecalculateSamplePeriod();
+        }
+
+        /// <summary>
+        /// 从JSON文件读取激光雷达配置（通过.NET配置提供程序）
+        /// </summary>
+        public void ReadRadarDeviceConfig()
+        {
+            ConfigHelper.Config.Reload(); // 重新加载配置文件，确保全局配置实体更新
+            // 读取"Radar"节点下的所有配置项
+            Program.RadarConfig.LaserPower = radarConfig.CurrentValue.LaserPower;
+            Program.RadarConfig.LaserModulationFrequency = radarConfig.CurrentValue.LaserModulationFrequency;
+            Program.RadarConfig.SerialPort = radarConfig.CurrentValue.SerialPort;
+            Program.RadarConfig.BaudRate = radarConfig.CurrentValue.BaudRate;
         }
 
         ///// <summary>
@@ -192,6 +212,81 @@ namespace WebAPI.Tools
 
         }
 
+        /// <summary>
+        /// 将雷达配置写入 JSON 文件
+        /// </summary>
+        /// <param name="radarConfig">雷达配置实例</param>
+        public void WriteRadarConfig(RadarConfig radarConfig)
+        {
+            try
+            {
+                //1.读取现有 JSON 配置（避免覆盖采集卡等其他节点）
+                var rootConfig = new RootConfig();
+                if (File.Exists(ConfigFilePath))
+                {
+                    // 读取现有文件内容
+                    var existingJson = File.ReadAllText(ConfigFilePath);
+                    // 反序列化（源生成器）
+                    rootConfig = JsonSerializer.Deserialize(existingJson, ConfigJsonContext.Default.RootConfig) ?? new RootConfig();
+
+                }
+
+                // 2. 更新雷达配置
+                rootConfig.Radar = radarConfig;
+
+                //3.配置 JSON 序列化选项（美化格式、兼容中文、忽略空值）
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    WriteIndented = true, // 格式化输出（易读）
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // 不转义中文
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, // 忽略空值属性
+                    Converters = { new JsonDecimalConverter() } // 处理 decimal 类型序列化
+                };
+                var jsonContext = new ConfigJsonContext(jsonOptions);
+
+                // 4. 写入文件（序列化）（源生成器）
+                var jsonString = JsonSerializer.Serialize(rootConfig, jsonContext.RootConfig);
+
+                // 5.关键：改用 FileStream 强制刷新磁盘，取消缓存延迟，使用 FileMode.OpenOrCreate + FileAccess.Write
+                // 不删除文件，只打开并修改内容！IOptionsMonitor 不会丢失监听！
+                using (var stream = new FileStream(
+                    ConfigFilePath,
+                    FileMode.Open,  // 这个是关键！不是 Create！
+                    FileAccess.Write,
+                    FileShare.ReadWrite,
+                    4096,
+                    FileOptions.WriteThrough))  // 直写磁盘，无缓存延迟
+                {
+                    // 清空文件原有内容（关键！）
+                    stream.SetLength(0);
+                    using (var writer = new StreamWriter(stream, Encoding.UTF8))
+                    {
+                        writer.Write(jsonString);
+                        writer.Flush();
+                        stream.Flush(true);  // 强制写入物理磁盘，禁用操作系统缓存
+                    }
+                }
+
+                _logger.LogInformation($"雷达配置已写入：{ConfigFilePath} | 最后修改时间：{File.GetLastWriteTime(ConfigFilePath)}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // 权限问题（最常见）
+                throw new InvalidOperationException($"无写入权限！请检查路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (IOException ex)
+            {
+                // 文件被占用/路径错误
+                throw new InvalidOperationException($"文件写入失败！路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                // 其他异常
+                throw new InvalidOperationException($"雷达配置写入失败：{ex.Message}", ex);
+            }
+
+        }
+
     }
 
 
@@ -207,9 +302,9 @@ namespace WebAPI.Tools
         public CaptureCardConfig CaptureCard { get; set; } = new CaptureCardConfig();
 
         /// <summary>
-        /// 雷达配置节点（预留）
+        /// 雷达配置节点
         /// </summary>
-        public object Radar { get; set; } = new object();
+        public RadarConfig Radar { get; set; } = new RadarConfig();
     }
 
     /// <summary>
@@ -236,8 +331,8 @@ namespace WebAPI.Tools
     /// </summary>
     [JsonSerializable(typeof(RootConfig))]
     [JsonSerializable(typeof(CaptureCardConfig))]
+    [JsonSerializable(typeof(RadarConfig))]
     [JsonSerializable(typeof(JsonElement))] // 新增：支持JsonElement类型
-    [JsonSerializable(typeof(object))]      // 新增：支持object类型（如果Radar是object）
     public partial class ConfigJsonContext : JsonSerializerContext
     {
 

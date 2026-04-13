@@ -11,7 +11,10 @@
   },
 
   "Radar": {
-
+    "LaserPower": 0,
+    "LaserModulationFrequency": 0,
+    "SerialPort": "",
+    "BaudRate": 9600
   }
 
 }

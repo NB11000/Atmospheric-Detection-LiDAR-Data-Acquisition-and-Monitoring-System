@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	<PublishAot>true</PublishAot>                <!-- 启用 Native AOT -->
+    <PublishTrimmed>true</PublishTrimmed>        <!-- 剪裁未使用代码（瘦身） -->
+    <DebuggerSupport>false</DebuggerSupport>      <!-- 关闭调试支持（瘦身） -->
 	  <!-- 核心：显式开启自包含（独立应用） -->
 	  <SelfContained>true</SelfContained>
 	  <!-- 必加：包含本机库-->

@@ -108,8 +108,8 @@ namespace WebAPI.Service
                         {
                             _vm.Status = $"收到[{processId}]错误消息：{clientMsg.Content}";
                         }); */
-
                     }
+                    
                     // 消息类型3：指令响应（客户端处理完服务端指令后返回的结果）
                     else if (clientMsg.MessageType == "command_response")
                     {

@@ -28,9 +28,14 @@ namespace WebAPI
     class Program
     {
         /// <summary>
-        /// 公开的静态【配置实体属性】，主窗口可以直接获取
+        /// 公开的静态【配置实体属性】，主窗口可以直接获取，采集卡配置实体属性
         /// </summary>
         public static CaptureCardConfig CurrentConfig { get; set; } = new CaptureCardConfig();
+
+        /// <summary>
+        /// 激光器配置实体属性
+        /// </summary>
+        public static RadarConfig RadarConfig { get; set; } = new RadarConfig();
 
         /// <summary>
         /// 初始化日志 ：日志不再手动创建，统一由 DI 注入
@@ -116,9 +121,14 @@ namespace WebAPI
             builder.Services.AddSingleton<GrpcServiceImpl>();
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<ConfigHelper>();
+            // 注册激光器控制服务
+            builder.Services.AddSingleton<CniLaserControl.CniLaser>();
             // 注册Options（绑定到CaptureCard）
             builder.Services.AddOptions()
                 .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
+            // 注册Options（绑定到Radar）
+            builder.Services.AddOptions()
+                .Configure<RadarConfig>(ConfigHelper.Config.GetSection("Radar"));
 
             // 动态获取10000以上端口号
             int port = Tool.GetAvailablePort(minPort: 10000);
@@ -215,6 +225,7 @@ namespace WebAPI
                     var configHelper = app.Services.GetRequiredService<ConfigHelper>();
                     // 读取配置文件并更新全局配置实体
                     configHelper.ReadDeviceConfig();
+                    configHelper.ReadRadarDeviceConfig();
                     // 启动子进程，并将主进程监听的ip地址转递给子进程
                     int parentProcessId = Process.GetCurrentProcess().Id;
                     ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);
@@ -287,7 +298,7 @@ namespace WebAPI
                 }
             });
 
-            app.MapGet("/", () => $"后台grpc服务已启动，绑定HTTP/2端口{port}，HTTP/1.1端口5135");
+            app.MapGet("/", () => $"WebApi服务已启动，绑定HTTP/2端口{port}，HTTP/1.1端口5135");
 
             app.MapGet("/open", async (GrpcServiceImpl grpc) =>
             {

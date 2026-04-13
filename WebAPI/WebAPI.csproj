@@ -7,6 +7,12 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   	  <!-- 核心：显式开启自包含（独立应用） -->
 	  <SelfContained>true</SelfContained>
+	  <!-- 必加：包含本机库-->
+	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	  <!-- 这三行是根治关键，必须加 -->
+	  <PublishTrimmed>false</PublishTrimmed>
+	  <TrimSupported>false</TrimSupported>
+	  <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +23,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
     <PackageReference Include="Microsoft.Playwright" Version="1.57.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.5" />
     <PackageReference Include="System.Text.Json" Version="10.0.5" />
   </ItemGroup>
 
