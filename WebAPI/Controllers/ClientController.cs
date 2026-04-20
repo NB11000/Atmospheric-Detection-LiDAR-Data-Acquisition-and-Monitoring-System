@@ -26,21 +26,26 @@ namespace WebAPI.Controllers
         private readonly GrpcServiceImpl _grpcService;
         private readonly ILogger<ClientController> _logger;
         private readonly ConfigHelper _configHelper;
+        private readonly SystemStateService _systemStateService;
 
         /// <summary>
-        /// 构造函数，注入gRPC服务、日志器和配置助手
+        /// 构造函数，注入gRPC服务、日志器、配置助手和系统状态服务
         /// </summary>
         /// <param name="grpcService">gRPC服务实例</param>
         /// <param name="logger">日志记录器</param>
         /// <param name="configHelper">配置文件助手</param>
-        public ClientController(GrpcServiceImpl grpcService, ILogger<ClientController> logger, ConfigHelper configHelper)
+        /// <param name="systemStateService">系统状态服务</param>
+        public ClientController(GrpcServiceImpl grpcService, ILogger<ClientController> logger, 
+            ConfigHelper configHelper, SystemStateService systemStateService)
         {
             _grpcService = grpcService;
             _logger = logger;
             _configHelper = configHelper;
+            _systemStateService = systemStateService;
         }
 
         /// <summary>
+        /// (测试端点) 
         /// 检查数据采集子进程是否已连接
         /// </summary>
         /// <returns>连接状态</returns>
@@ -65,6 +70,7 @@ namespace WebAPI.Controllers
         }
 
         /// <summary>
+        /// (测试端点) 
         /// 向数据采集子进程发送指令并等待响应
         /// </summary>
         /// <param name="command">指令内容（如OPEN_DEVICE、START_AD等）</param>
@@ -101,6 +107,7 @@ namespace WebAPI.Controllers
         }
 
         /// <summary>
+        /// (测试端点) 
         /// 向数据采集子进程发送指令（异步，不等待响应）
         /// </summary>
         /// <param name="command">指令内容</param>
@@ -132,57 +139,175 @@ namespace WebAPI.Controllers
         }
 
         /// <summary>
-        /// 发送打开采集卡设备指令
+        /// 发送打开采集卡设备指令，返回统一命令响应
         /// </summary>
-        /// <returns>客户端响应</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("open")]
         public async Task<IActionResult> OpenDevice()
         {
-            return await SendCommand("OPEN_DEVICE");
+            try
+            {
+                // 向数据采集子进程发送打开设备指令，并等待响应
+                var response = await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "OPEN_DEVICE");
+                // 无论操作成功与否，都获取最新状态返回给前端，方便前端展示当前状态和错误信息
+                var state = _systemStateService.Get_System_State_Struct();
+                // 根据最新状态判断操作是否成功，并返回统一的命令响应结构，包含操作结果、状态码、消息，系统状态设为null以减少网络传输
+                return Ok(new CommandResult
+                {
+                    Success = state.Collector.DeviceOpened,
+                    Code = state.Collector.DeviceOpened ? "COLLECTOR_OPENED" : "COLLECTOR_OPEN_FAILED",
+                    Message = response.Content,
+                    State = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "打开采集卡时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "COLLECTOR_OPEN_EXCEPTION",
+                    Message = $"打开采集卡时发生异常:{ex.Message}",
+                    State = null
+                });
+            }
         }
 
         /// <summary>
-        /// 发送重新打开采集卡设备指令
+        /// 发送重新打开采集卡设备指令，返回统一命令响应
         /// </summary>
-        /// <returns>客户端响应</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("open-again")]
         public async Task<IActionResult> OpenDeviceAgain()
         {
-            return await SendCommand("OPEN_DEVICE_AGAIN");
+            try
+            {
+                var response = await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "OPEN_DEVICE_AGAIN");
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
+                {
+                    Success = state.Collector.DeviceOpened,
+                    Code = state.Collector.DeviceOpened ? "COLLECTOR_OPENED" : "COLLECTOR_OPEN_FAILED",
+                    Message = response.Content,
+                    State = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "重新打开采集卡时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "COLLECTOR_OPEN_EXCEPTION",
+                    Message = $"重新打开采集卡时发生异常:{ex.Message}",
+                    State = null
+                });
+            }
         }
 
         /// <summary>
-        /// 发送关闭采集卡设备指令
+        /// 发送关闭采集卡设备指令，返回统一命令响应
         /// </summary>
-        /// <returns>客户端响应</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("close")]
         public async Task<IActionResult> CloseDevice()
         {
-            return await SendCommand("CLOSE_DEVICE");
+            try
+            {
+                var response = await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "CLOSE_DEVICE");
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
+                {
+                    Success = !state.Collector.DeviceOpened,
+                    Code = !state.Collector.DeviceOpened ? "COLLECTOR_CLOSED" : "COLLECTOR_CLOSE_FAILED",
+                    Message = response.Content,
+                    State = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "关闭采集卡时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "COLLECTOR_CLOSE_EXCEPTION",
+                    Message = $"关闭采集卡时发生异常:{ex.Message}",
+                    State = null
+                });
+            }
         }
 
         /// <summary>
-        /// 发送开始采集指令
+        /// 发送开始采集指令，返回统一命令响应
         /// </summary>
-        /// <returns>客户端响应</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("start")]
         public async Task<IActionResult> StartAd()
         {
-            return await SendCommand("START_AD");
+            try
+            {
+                var response = await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "START_AD");
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
+                {
+                    Success = state.Collector.Acquiring,
+                    Code = state.Collector.Acquiring ? "AD_STARTED" : "AD_START_FAILED",
+                    Message = response.Content,
+                    State = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "开始采集时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "AD_START_EXCEPTION",
+                    Message = $"开始采集时发生异常:{ex.Message}",
+                    State = null
+                });
+            }
         }
 
         /// <summary>
-        /// 发送停止采集指令
+        /// 发送停止采集指令，返回统一命令响应
         /// </summary>
-        /// <returns>客户端响应</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("stop")]
         public async Task<IActionResult> StopAd()
         {
-            return await SendCommand("STOP_AD");
+            try
+            {
+                var response = await _grpcService.SendCommandToClientAndWaitResponse(ClientId, "STOP_AD");
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
+                {
+                    Success = !state.Collector.Acquiring,
+                    Code = !state.Collector.Acquiring ? "AD_STOPPED" : "AD_STOP_FAILED",
+                    Message = response.Content,
+                    State = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "停止采集时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "AD_STOP_EXCEPTION",
+                    Message = $"停止采集时发生异常:{ex.Message}",
+                    State = null
+                });
+            }
         }
 
         /// <summary>
-        /// 发送心跳检测指令
+        /// (测试端点) 发送心跳检测指令
         /// </summary>
         /// <returns>客户端响应</returns>
         [HttpPost("ping")]
@@ -192,7 +317,7 @@ namespace WebAPI.Controllers
         }
 
         /// <summary>
-        /// 发送优雅退出指令
+        /// (测试端点) 发送优雅退出指令
         /// </summary>
         /// <returns>客户端响应</returns>
         [HttpPost("exit")]
@@ -249,7 +374,11 @@ namespace WebAPI.Controllers
                 _logger.LogWarning($"数据采集子进程未连接，但配置已保存");
                 // 即使子进程未连接，配置也已保存，返回成功
                 _configHelper.ReadDeviceConfig();
-                return Ok(Program.CurrentConfig);
+                return Ok(new
+                {
+                    Warning = "数据采集子进程未连接，但配置已保存",
+                    Config = Program.CurrentConfig
+                });
             }
             catch (Exception ex)
             {

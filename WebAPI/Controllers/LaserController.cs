@@ -1,4 +1,5 @@
 using WebAPI.Tools;
+using WebAPI.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -17,97 +18,131 @@ namespace WebAPI.Controllers
         private readonly CniLaserControl.CniLaser _laser;
         private readonly ILogger<LaserController> _logger;
         private readonly ConfigHelper _configHelper;
+        private readonly SystemStateService _systemStateService;
 
         /// <summary>
-        /// 构造函数，注入激光器服务,日志器和配置助手
+        /// 构造函数，注入激光器服务、日志器、配置助手和系统状态服务
         /// </summary>
         /// <param name="laser">激光器服务实例</param>
         /// <param name="logger">日志记录器</param>
         /// <param name="configHelper">配置助手</param>
+        /// <param name="systemStateService">系统状态服务</param>
         public LaserController(CniLaserControl.CniLaser laser, ILogger<LaserController> logger,
-                    ConfigHelper configHelper)
+                    ConfigHelper configHelper, SystemStateService systemStateService)
         {
             _laser = laser;
             _logger = logger;
             _configHelper = configHelper;
+            _systemStateService = systemStateService;
         }
 
         /// <summary>
-        /// 打开串口连接激光器
-        /// 从全局配置中获取串口号和波特率进行串口连接，并返回连接结果
+        /// 打开串口连接激光器，返回统一命令响应
+        /// 从全局配置中获取串口号和波特率进行串口连接
         /// </summary>
-        /// <returns>连接结果</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("connect")]
-        public IActionResult Connect()
+        public async Task<IActionResult> Connect()
         {
             try
             {
                 // 从全局配置中获取串口号和波特率
                 var radarConfig = Program.RadarConfig;
                 
+                // 验证串口配置
                 if (string.IsNullOrEmpty(radarConfig.SerialPort))
                 {
-                    return BadRequest("串口号未配置，请先在配置中设置串口号");
+                    // 如果串口号未配置，直接返回错误响应
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_CONNECT_FAILED",
+                        Message = "串口号未配置，请先在配置中设置串口号",
+                        State = null
+                    });
                 }
 
                 _logger.LogInformation($"尝试打开串口连接激光器，端口：{radarConfig.SerialPort}，波特率：{radarConfig.BaudRate}");
                 bool success = _laser.Connect(radarConfig.SerialPort, radarConfig.BaudRate);
-                if (success)
+                var stateAfter = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
                 {
-                    _logger.LogInformation($"串口连接成功，端口：{radarConfig.SerialPort}");
-                    return Ok(new { 
-                        Message = "串口连接成功", 
-                        Port = radarConfig.SerialPort, 
-                        BaudRate = radarConfig.BaudRate 
-                    });
-                }
-                else
-                {
-                    _logger.LogWarning($"串口连接失败，端口：{radarConfig.SerialPort}");
-                    return StatusCode(500, "串口连接失败，请检查端口和波特率设置");
-                }
+                    Success = stateAfter.Laser.SerialConnected,
+                    Code = stateAfter.Laser.SerialConnected ? "LASER_CONNECTED" : "LASER_CONNECT_FAILED",
+                    Message = stateAfter.Laser.SerialConnected ? "串口连接成功" : "串口连接失败，请检查端口和波特率设置",
+                    State = null
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"打开串口连接激光器时发生异常");
-                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+                _logger.LogError(ex, "打开串口连接激光器时发生异常");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "LASER_CONNECT_EXCEPTION",
+                    Message = $"打开串口连接激光器时发生异常:{ex.Message}",
+                    State = null
+                });
             }
         }
 
         /// <summary>
-        /// 断开串口连接
+        /// 断开串口连接，返回统一命令响应
         /// </summary>
-        /// <returns>断开结果</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("disconnect")]
-        public IActionResult Disconnect()
+        public async Task<IActionResult> Disconnect()
         {
             try
             {
                 _logger.LogInformation("断开串口连接");
                 _laser.Disconnect();
-                return Ok(new { Message = "串口已断开连接" });
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
+                {
+                    Success = !state.Laser.SerialConnected,
+                    Code = !state.Laser.SerialConnected ? "LASER_DISCONNECTED" : "LASER_DISCONNECT_FAILED",
+                    Message = !state.Laser.SerialConnected ? "串口已断开连接" : "串口断开连接失败",
+                    State = null
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "断开串口连接时发生异常");
-                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "LASER_DISCONNECT_EXCEPTION",
+                    Message = $"断开串口连接时发生异常:{ex.Message}",
+                    State = null
+                });
             }
         }
 
         /// <summary>
-        /// 开启激光
+        /// 开启激光，返回统一命令响应
         /// 在开启激光前，先从全局配置中获取激光功率和调制频率并设置
         /// </summary>
-        /// <returns>操作结果</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("on")]
-        public IActionResult LaserOn()
+        public async Task<IActionResult> LaserOn()
         {
             try
             {
                 // 检查激光器是否已连接
                 if (!_laser.IsConnected)
                 {
-                    return StatusCode(500, "激光器未连接，请先连接激光器");
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_ON_FAILED",
+                        Message = "激光器未连接，请先连接激光器",
+                        State = null
+                    });
                 }
 
                 // 从全局配置中获取激光功率和调制频率
@@ -116,12 +151,26 @@ namespace WebAPI.Controllers
                 // 验证配置
                 if (radarConfig.LaserPower <= 0)
                 {
-                    return BadRequest("激光功率未配置或配置无效，请先设置激光功率");
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_ON_FAILED",
+                        Message = "激光功率未配置或配置无效，请先设置激光功率",
+                        State = null
+                    });
                 }
 
                 if (radarConfig.LaserModulationFrequency <= 0)
                 {
-                    return BadRequest("激光调制频率未配置或配置无效，请先设置调制频率");
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_ON_FAILED",
+                        Message = "激光调制频率未配置或配置无效，请先设置调制频率",
+                        State = null
+                    });
                 }
 
                 _logger.LogInformation($"开始设置激光参数：功率={radarConfig.LaserPower} mW，频率={radarConfig.LaserModulationFrequency} Hz");
@@ -130,76 +179,92 @@ namespace WebAPI.Controllers
                 bool powerSuccess = _laser.SetPower(radarConfig.LaserPower);
                 if (!powerSuccess)
                 {
-                    _logger.LogWarning($"激光功率设置失败：{radarConfig.LaserPower} mW");
-                    return StatusCode(500, "激光功率设置失败，请检查激光器连接状态");
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_ON_FAILED",
+                        Message = "激光功率设置失败，请检查激光器连接状态",
+                        State = null
+                    });
                 }
-                _logger.LogInformation($"激光功率设置成功：{radarConfig.LaserPower} mW");
 
                 // 2. 设置激光调制频率
                 bool frequencySuccess = _laser.SetFrequency(radarConfig.LaserModulationFrequency);
                 if (!frequencySuccess)
                 {
-                    _logger.LogWarning($"激光调制频率设置失败：{radarConfig.LaserModulationFrequency} Hz");
-                    return StatusCode(500, "激光调制频率设置失败，请检查激光器连接状态");
-                }
-                _logger.LogInformation($"激光调制频率设置成功：{radarConfig.LaserModulationFrequency} Hz");
-
-                // 3. 开启激光
-                _logger.LogInformation("开启激光");
-                bool laserOnSuccess = _laser.LaserOn();
-                if (laserOnSuccess)
-                {
-                    _logger.LogInformation("激光开启成功");
-                    return Ok(new { 
-                        Message = "激光已开启",
-                        PowerMw = radarConfig.LaserPower,
-                        FrequencyHz = radarConfig.LaserModulationFrequency
+                    // var state = await _systemStateService.GetSystemStateAsync();
+                    return Ok(new CommandResult
+                    {
+                        Success = false,
+                        Code = "LASER_ON_FAILED",
+                        Message = "激光调制频率设置失败，请检查激光器连接状态",
+                        State = null
                     });
                 }
-                else
+
+                // 3. 开启激光
+                _laser.LaserOn();
+                var stateAfter = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
                 {
-                    _logger.LogWarning("激光开启失败");
-                    return StatusCode(500, "激光开启失败，请检查激光器连接状态");
-                }
+                    Success = stateAfter.Laser.EmissionOn,
+                    Code = stateAfter.Laser.EmissionOn ? "LASER_ON" : "LASER_ON_FAILED",
+                    Message = stateAfter.Laser.EmissionOn ? "激光开启成功" : "激光开启失败",
+                    State = null
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "开启激光时发生异常");
-                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "LASER_ON_EXCEPTION",
+                    Message = $"开启激光时发生异常:{ex.Message}",
+                    State = null
+                });
             }
         }
 
         /// <summary>
-        /// 关闭激光
+        /// 关闭激光，返回统一命令响应
         /// </summary>
-        /// <returns>操作结果</returns>
+        /// <returns>CommandResult 包含最新系统状态</returns>
         [HttpPost("off")]
-        public IActionResult LaserOff()
+        public async Task<IActionResult> LaserOff()
         {
             try
             {
                 _logger.LogInformation("关闭激光");
-                bool success = _laser.LaserOff();
-                if (success)
+                _laser.LaserOff();
+                var state = _systemStateService.Get_System_State_Struct();
+                return Ok(new CommandResult
                 {
-                    _logger.LogInformation("激光关闭成功");
-                    return Ok(new { Message = "激光已关闭" });
-                }
-                else
-                {
-                    _logger.LogWarning("激光关闭失败");
-                    return StatusCode(500, "激光关闭失败，请检查激光器连接状态");
-                }
+                    Success = !state.Laser.EmissionOn,
+                    Code = !state.Laser.EmissionOn ? "LASER_OFF" : "LASER_OFF_FAILED",
+                    Message = !state.Laser.EmissionOn ? "激光已关闭" : "激光关闭失败",
+                    State = null
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "关闭激光时发生异常");
-                return StatusCode(500, $"内部服务器错误：{ex.Message}");
+                var state = await _systemStateService.GetSystemStateAsync();
+                return Ok(new CommandResult
+                {
+                    Success = false,
+                    Code = "LASER_OFF_EXCEPTION",
+                    Message = $"关闭激光时发生异常:{ex.Message}",
+                    State = null
+                });
             }
         }
 
         /// <summary>
         /// 检查激光器连接状态
+        /// 根据CniLaser实例的属性直接返回连接状态和发射状态，不依赖系统状态服务，避免潜在的性能问题
         /// </summary>
         /// <returns>连接状态</returns>
         [HttpGet("status")]
@@ -207,9 +272,14 @@ namespace WebAPI.Controllers
         {
             try
             {
-                // 使用激光器连接状态属性
-                bool isConnected = _laser.IsConnected;
-                return Ok(new { Connected = isConnected, Timestamp = DateTime.Now });
+                // 直接返回激光器的连接状态和发射状态，不依赖系统状态服务
+                return Ok(new
+                {
+                    Connected = _laser.IsConnected,
+                    EmissionOn = _laser.IsEmissionOn,
+                    PortName = _laser.PortName,
+                    Timestamp = DateTime.Now
+                });
             }
             catch (Exception ex)
             {
@@ -266,6 +336,5 @@ namespace WebAPI.Controllers
         }
 
     }
-
 
 }

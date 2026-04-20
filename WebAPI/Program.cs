@@ -17,6 +17,7 @@ using System.Net.WebSockets;
 using WebAPI.Tools;
 using WebAPI.Models;
 using WebAPI.Service;
+using WebAPI.Hubs;
 using WebAPISharedMemoryFramework;
 using Grpc.Core;
 using Serilog;
@@ -112,7 +113,18 @@ namespace WebAPI
                         .AllowAnyMethod()   // 允许任何请求方式 GET/POST/PUT...
                         .AllowAnyHeader();  // 允许任何请求头
                 });
+                // SignalR专用跨域策略（SignalR不支持AllowAnyOrigin + AllowCredentials）
+                options.AddPolicy("SignalRPolicy", policy =>
+                {
+                    policy.SetIsOriginAllowed(_ => true)  // 允许任何来源
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();  // SignalR需要凭据支持
+                });
             });
+
+            // 注册SignalR服务
+            builder.Services.AddSignalR();
 
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<UISharedBuffer>();
@@ -123,6 +135,8 @@ namespace WebAPI
             builder.Services.AddSingleton<ConfigHelper>();
             // 注册激光器控制服务
             builder.Services.AddSingleton<CniLaserControl.CniLaser>();
+            // 注册系统状态服务
+            builder.Services.AddSingleton<SystemStateService>();
             // 注册Options（绑定到CaptureCard）
             builder.Services.AddOptions()
                 .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));
@@ -203,6 +217,10 @@ namespace WebAPI
             app.UseCors("AllowAll");
             app.UseAuthorization();
             app.MapControllers();
+
+            // 映射SignalR Hub端点（使用SignalR专用跨域策略）
+            app.MapHub<SystemStateHub>("/hubs/system-state")
+                .RequireCors("SignalRPolicy");
 
             // 启用WebSocket支持
             app.UseWebSockets(new WebSocketOptions

@@ -1,5 +1,6 @@
 ﻿using AvaloniaApplication1;
 using AvaloniaApplication1.Models;
+using ConsoleApp1.Models;
 using ConsoleApp1.Tools;
 using Microsoft.Extensions.Logging;
 using System;
@@ -77,6 +78,11 @@ namespace ConsoleApp1.Service
         /// </summary>
         private volatile string FIFOStatus;
 
+        /// <summary>
+        /// 最近一次状态消息
+        /// </summary>
+        public string LastStatusMessage { get; set; } = "采集卡未打开";
+
         public AD_Controlcs()
         {
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌
@@ -97,9 +103,15 @@ namespace ConsoleApp1.Service
         {
             mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
             if (mHandle < 0)
-                return "未检测到采集卡";
+            {
+                LastStatusMessage = "未检测到采集卡";
+                return LastStatusMessage;
+            }
             else
-                return "默认采集卡打开成功! 句柄：" + mHandle.ToString();
+            {
+                LastStatusMessage = "默认采集卡打开成功! 句柄：" + mHandle.ToString();
+                return LastStatusMessage;
+            }
         }
 
         /// <summary>
@@ -111,12 +123,31 @@ namespace ConsoleApp1.Service
             //打开设备
             mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
             if (mHandle < 0)
-                return "仍未检测到采集卡，请检查USB接口和是否安装采集卡驱动程序";
+            {
+                LastStatusMessage = "仍未检测到采集卡，请检查USB接口和是否安装采集卡驱动程序";
+                return LastStatusMessage;
+            }
             else
             {
-                return "采集卡设备打开成功! 句柄：" + mHandle.ToString();
+                LastStatusMessage = "采集卡设备打开成功! 句柄：" + mHandle.ToString();
+                return LastStatusMessage;
                 //mHandle = mHandle;
             }
+        }
+
+        /// <summary>
+        /// 获取采集卡运行时状态快照
+        /// </summary>
+        public CollectorRuntimeState GetRuntimeState()
+        {
+            return new CollectorRuntimeState
+            {
+                DeviceOpened = mHandle.ToInt64() > 0,
+                Acquiring = ADDataTest_RunFlag,
+                Handle = mHandle.ToInt64(),
+                LastMessage = LastStatusMessage,
+                Timestamp = DateTime.Now
+            };
         }
 
         /// <summary>
@@ -367,6 +398,8 @@ namespace ConsoleApp1.Service
                             // 仅设置退出标志，不调用 stop()
                             ADDataTest_RunFlag = false;
                             cts.Cancel();  // 触发所有等待操作取消
+                            // 向 WebAPI 上报设备断开错误
+                            GrpcClient.SendErrorMessage("USB读取失败，设备可能已断开", "DEVICE_DISCONNECTED");
                             //Dispatcher.UIThread.Post(() =>
                             //{
                             //    vm.Status = "数据读取失败或采集卡断开,已停止采集";
@@ -398,7 +431,15 @@ namespace ConsoleApp1.Service
                                  $"来源: {ex.Source}";
                 Program.logger.LogError(errorMsg);
 
-                GrpcClient.SendErrorMessage("AD采集线程出现异常: " + ex.Message);
+                // 向 WebAPI 上报错误，携带具体错误码
+                if (ex.Message.Contains("USB") || ex.Message.Contains("设备") || ex.Message.Contains("断开"))
+                {
+                    GrpcClient.SendErrorMessage(ex.Message, "DEVICE_DISCONNECTED");
+                }
+                else
+                {
+                    GrpcClient.SendErrorMessage(ex.Message, "ACQUISITION_FAILED");
+                }
             }
         }
 
@@ -839,6 +880,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         public void start()
         {
+            LastStatusMessage = "准备开始采集";
             int i;
             bool iResult;
             float freq;
@@ -893,6 +935,7 @@ namespace ConsoleApp1.Service
             USB1602.DelayUs(100);
 
             ADDataTest_RunFlag = true;
+            LastStatusMessage = "正在采集";
 
 
             ////AD块启动 
@@ -945,6 +988,7 @@ namespace ConsoleApp1.Service
         /// </summary>
         public void stop()
         {
+            LastStatusMessage = "正在停止采集";
             ADDataTest_RunFlag = false;
             cts.Cancel();
             bool iResult;
@@ -967,6 +1011,7 @@ namespace ConsoleApp1.Service
             iResult = USB1602.USB1602_CLRRAM(mHandle);
 
             // 清除通道数据
+            LastStatusMessage = "已停止采集";
             //channel
             //Analysischannel
             //UIchannel

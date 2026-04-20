@@ -18,6 +18,8 @@ using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.ServiceModel.Channels;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -72,6 +74,16 @@ namespace ConsoleApp1.Service
         /// </summary>
         private static readonly ConcurrentQueue<AdResponse> ResponseQueue = new ConcurrentQueue<AdResponse>();
 
+        /// <summary>
+        /// JSON序列化选项（支持AOT编译）
+        /// </summary>
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false,
+            TypeInfoResolver = JsonSerializer.IsReflectionEnabledByDefault ? null : new DefaultJsonTypeInfoResolver()
+        };
+
         //// 定义类级别的复用对象（仅创建1次）
         //private readonly AdRequest _reusableCommand = new AdRequest();
         //// GRPC 生成的消息解析器（提前初始化）
@@ -110,18 +122,48 @@ namespace ConsoleApp1.Service
                 if(stream!=null)
                     Program.logger.LogInformation("grpc客户端已启动");
 
-               // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
+                // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
                var sendResponse = Task.Run(() =>
                 {
                     AdResponse response = null;
                     while (!_cts.Token.IsCancellationRequested)
                     {
-                        Thread.Sleep(10);
+                        Thread.Sleep(5); // 减少sleep时间，加快响应速度
                         if(ResponseQueue.TryDequeue(out response) && response!=null)
                         {
-                            //同步阻塞减少线程池调度
-                            _responseStreamWriter.WriteAsync(response).Wait();
-                            ResponsePool.Return(response);
+                            try
+                            {
+                                //同步阻塞减少线程池调度
+                                _responseStreamWriter.WriteAsync(response).Wait();
+                                Program.logger.LogDebug($"成功发送响应: {response.MessageType}, RequestId: {response.ResponseId}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Program.logger.LogError($"发送响应失败: {ex.Message}");
+                                // 如果发送失败，将响应重新放回队列前端以便重试
+                                var retryResponse = ResponsePool.Get();
+                                retryResponse.ResponseId = response.ResponseId;
+                                retryResponse.MessageType = response.MessageType;
+                                retryResponse.ErrorCode = response.ErrorCode;
+                                retryResponse.Content = response.Content;
+                                retryResponse.ProcessId = response.ProcessId;
+                                retryResponse.MHandle = response.MHandle;
+                                // 创建新队列并将失败响应放在最前面
+                                var tempQueue = new ConcurrentQueue<AdResponse>();
+                                tempQueue.Enqueue(retryResponse);
+                                while (ResponseQueue.TryDequeue(out var item))
+                                {
+                                    tempQueue.Enqueue(item);
+                                }
+                                while (tempQueue.TryDequeue(out var item))
+                                {
+                                    ResponseQueue.Enqueue(item);
+                                }
+                            }
+                            finally
+                            {
+                                ResponsePool.Return(response);
+                            }
                         }
                     }
                 }, _cts.Token);
@@ -143,7 +185,10 @@ namespace ConsoleApp1.Service
                 }, _cts.Token);
 
 
-                // 4. 先发生准备完成消息，传递子进程ID
+                // 4. 等待sendResponse任务开始运行
+                await Task.Delay(100);
+                
+                // 5. 先发生准备完成消息，传递子进程ID
                 SendMessage("子进程准备完毕");
 
                 // 请求配置文件路径
@@ -208,7 +253,9 @@ namespace ConsoleApp1.Service
                     case "CLOSE_DEVICE":
 
                         USB1602.USB1602_CloseDevice(aD_Controlcs.mHandle); // 关闭采集卡硬件
+                        aD_Controlcs.mHandle = IntPtr.Zero;
                         response.Content = "采集卡设备已关闭";
+                        aD_Controlcs.LastStatusMessage = response.Content;
                         Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
                         break;
 
@@ -218,6 +265,7 @@ namespace ConsoleApp1.Service
                         if (aD_Controlcs.mHandle <= 0)
                         {
                             response.Content = "采集卡未打开，无法开始采集";
+                            aD_Controlcs.LastStatusMessage = response.Content;
                             Program.logger.LogInformation($"客户端[{_processId}]响应:{response.Content}");
                             break;
                         }
@@ -225,6 +273,7 @@ namespace ConsoleApp1.Service
                         {
                             aD_Controlcs.start();
                             response.Content = "AD_STARTED";
+                            aD_Controlcs.LastStatusMessage = "正在采集";
                             Program.logger.LogInformation($"AD_STARTED");
                             break;             
                         }
@@ -234,6 +283,7 @@ namespace ConsoleApp1.Service
 
                         aD_Controlcs.stop();
                         response.Content = "AD_STOPPED";
+                        aD_Controlcs.LastStatusMessage = "已停止采集";
                         Program.logger.LogInformation("AD_STOPPED");
                         break;
 
@@ -280,6 +330,12 @@ namespace ConsoleApp1.Service
                         response.Content = "配置已读取";
                         break;
 
+                    case "GET_COLLECTOR_STATE":
+
+                         response.Content = JsonSerializer.Serialize(aD_Controlcs.GetRuntimeState(), JsonOptions);
+                        Program.logger.LogInformation($"客户端[{_processId}]响应:GET_COLLECTOR_STATE");
+                        break;
+
 
                     // 未知命令
                     default:
@@ -294,9 +350,11 @@ namespace ConsoleApp1.Service
             catch (Exception ex)
             {
                 // 指令处理异常，返回错误信息
-                response.MessageType = "ERROR";
+                // 保持MessageType为command_response，以便服务端能正确匹配响应
+                response.MessageType = "command_response";
                 response.ErrorCode = "COMMAND_HANDLE_FAILED";
                 response.Content = $"指令处理失败：{ex.Message}";
+                Program.logger.LogError($"处理指令{request.Command}时发生异常: {ex}");
             }
 
             // 发送响应到消息队列
@@ -380,11 +438,11 @@ namespace ConsoleApp1.Service
         // 复用StringBuilder，避免频繁拼接
         private static readonly StringBuilder sb3 = new();
         /// <summary>
-        /// 客户端主动上报错误消息
+        /// 客户端主动上报错误消息（支持错误码分类）
         /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        public static void SendErrorMessage(string message)
+        /// <param name="message">错误描述</param>
+        /// <param name="errorCode">错误码（DEVICE_DISCONNECTED / ACQUISITION_FAILED / DEVICE_OPEN_FAILED / GENERAL_ERROR）</param>
+        public static void SendErrorMessage(string message, string errorCode = "GENERAL_ERROR")
         {
             try
             {
@@ -397,7 +455,7 @@ namespace ConsoleApp1.Service
                 heartbeat.ResponseId = Guid.NewGuid().ToString("N"); // 随机ID
                 heartbeat.MessageType = "Error";// 标记为数据上报（与服务端逻辑匹配）
                 heartbeat.Content = sb3.ToString();
-                heartbeat.ErrorCode = "NONE";
+                heartbeat.ErrorCode = errorCode;  // 使用传入的错误码
                 heartbeat.ProcessId = _processId;
 
                 // 发送错误消息到消息队列

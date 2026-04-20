@@ -1,5 +1,8 @@
 using System;
 using System.IO.Ports;
+using Microsoft.Extensions.DependencyInjection;
+using WebAPI.Service;
+using WebAPI.Models;
 
 namespace CniLaserControl
 {
@@ -12,6 +15,8 @@ namespace CniLaserControl
         private static readonly byte[] CommandLaserOff = { 0x55, 0xAA, 0x03, 0x00, 0x03 };
         private const int DefaultBaudRate = 9600;
         private ILogger<CniLaser> _logger;
+        private readonly IServiceProvider _serviceProvider;
+        private bool _isEmissionOn;
 
 
         /// <summary>
@@ -19,9 +24,20 @@ namespace CniLaserControl
         /// </summary>
         public bool IsConnected => _serialPort != null && _serialPort.IsOpen;
 
-        public CniLaser(ILogger<CniLaser> logger)
+        /// <summary>
+        /// 获取激光开关状态
+        /// </summary>
+        public bool IsEmissionOn => IsConnected && _isEmissionOn;
+
+        /// <summary>
+        /// 获取当前串口名称
+        /// </summary>
+        public string PortName => _serialPort?.PortName ?? string.Empty;
+
+        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider)
         {
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         /// <summary>
@@ -48,7 +64,7 @@ namespace CniLaserControl
                 {
                     ReadTimeout = 1000,              // 1秒读取超时
                     WriteTimeout = 1000,             // 1秒写入超时
-                    Handshake = Handshake.None,      // 无流控制（根据设备调整）
+                    Handshake = Handshake.None,      // 无流控（根据设备调整）
                     RtsEnable = true,                // RTS使能 - 关键！
                     DtrEnable = true,                // DTR使能 - 关键！
                     ReceivedBytesThreshold = 1,      // 实时响应
@@ -56,15 +72,27 @@ namespace CniLaserControl
                     WriteBufferSize = 4096           // 4KB缓冲区
                 };
                 _serialPort.Open();
+                _isEmissionOn = false;
 
                 // 等待串口稳定
                 System.Threading.Thread.Sleep(100);
                 _logger.LogInformation("串口连接成功");
+                
+                // 更新激光器状态缓存
+                UpdateLaserStateCache();
+                
+                // 发布连接成功事件（异步不等待）
+                //_ = PublishLaserStateChangedAsync("laser_connected", "激光串口连接成功", "激光器串口已连接");
+                
                 return true;
             }
             catch(Exception ex) 
             {
                 _logger.LogError($"打开串口异常：{ex}");
+                // 更新激光器状态缓存（确保状态为未连接）
+                UpdateLaserStateCache();
+                // 发布连接失败事件（异步不等待）
+                //_ = PublishLaserStateChangedAsync("laser_connection_error", $"串口连接失败: {ex.Message}", "激光器串口连接失败");
                 return false;
             }
         }
@@ -75,9 +103,19 @@ namespace CniLaserControl
         /// </summary>
         public void Disconnect()
         {
+            _isEmissionOn = false;
             if (_serialPort != null && _serialPort.IsOpen)
             {
                 _serialPort.Close();
+                // 更新激光器状态缓存
+                UpdateLaserStateCache();
+                // 发布断开连接事件（异步不等待）
+                //_ = PublishLaserStateChangedAsync("laser_disconnected", "激光串口主动断开", "激光器串口连接已断开");
+            }
+            else
+            {
+                // 串口未打开，仍需要更新缓存确保状态一致
+                UpdateLaserStateCache();
             }
         }
 
@@ -214,7 +252,15 @@ namespace CniLaserControl
         public bool LaserOn()
         {
             _logger.LogInformation("开启激光");
-            return SendCommandNoAlloc(CommandLaserOn, 100);
+            bool success = SendCommandNoAlloc(CommandLaserOn, 100);
+            if (success)
+            {
+                _isEmissionOn = true;
+                // 更新激光器状态缓存
+                UpdateLaserStateCache();
+            }
+
+            return success;
         }
 
         /// <summary>
@@ -223,7 +269,15 @@ namespace CniLaserControl
         public bool LaserOff()
         {
             _logger.LogInformation("关闭激光");
-            return SendCommandNoAlloc(CommandLaserOff, 100);
+            bool success = SendCommandNoAlloc(CommandLaserOff, 100);
+            if (success)
+            {
+                _isEmissionOn = false;
+                // 更新激光器状态缓存
+                UpdateLaserStateCache();
+            }
+
+            return success;
         }
 
 
@@ -304,6 +358,52 @@ namespace CniLaserControl
             {
                 _logger.LogError($"解析或发送原始命令失败: {ex.Message}, 命令: {hexCommand}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 更新激光器状态缓存
+        /// </summary>
+        private void UpdateLaserStateCache()
+        {
+            try
+            {
+                var stateService = _serviceProvider.GetRequiredService<SystemStateService>();
+                stateService.UpdateLaserState(state => new LaserStateDto
+                {
+                    SerialConnected = IsConnected,
+                    EmissionOn = IsEmissionOn,
+                    PortName = PortName,
+                    LastMessage = IsConnected
+                        ? (IsEmissionOn ? "激光已开启" : "激光串口已连接")
+                        : "激光串口未连接",
+                    Timestamp = DateTime.Now
+                });
+                _logger.LogDebug("激光器状态缓存已更新: SerialConnected={Connected}, EmissionOn={EmissionOn}", IsConnected, IsEmissionOn);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新激光器状态缓存失败");
+            }
+        }
+
+        /// <summary>
+        /// 异步发布激光器状态变更事件
+        /// </summary>
+        private async Task PublishLaserStateChangedAsync(string eventType, string reason, string message)
+        {
+            try
+            {
+                var stateService = _serviceProvider.GetRequiredService<SystemStateService>();
+                await stateService.PublishStateChangedAsync(
+                    eventType,
+                    "laser",
+                    reason,
+                    message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "发布激光器状态变更事件失败");
             }
         }
 
