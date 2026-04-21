@@ -23,7 +23,7 @@ namespace WebAPI.Hubs
         {
             StateChanged,      // 状态机状态变更
             DeviceAlarm,       // 设备报警
-            DataUpdated,       // 数据更新
+            DataUpdated,       // 数据上报
             ConnectionStatus   // 连接状态
         }
 

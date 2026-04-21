@@ -63,12 +63,18 @@ namespace WebAPI.Service
         /// </summary>
         private readonly SystemStateService _stateService;
 
+        /// <summary>
+        /// SignalR统一推送服务实例（用于推送消息到前端）
+        /// </summary>
+        private readonly SignalRHubPublisher _hubPublisher;
+
         public GrpcServiceImpl(ILogger<GrpcServiceImpl> logger, IServiceProvider serviceProvider,
-        SystemStateService stateService)
+        SystemStateService stateService, SignalRHubPublisher hubPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _stateService = stateService;
+            _hubPublisher = hubPublisher;
         }
 
         /// <summary>
@@ -145,7 +151,7 @@ namespace WebAPI.Service
                         }
 
                         // 服务端上传 发布状态变更事件
-/*                         await _stateService.PublishStateChangedAsync(
+/*                         await _hubPublisher.PublishStateChangedAsync(
                             clientMsg.MessageType,
                             "collector",
                             "数据上报",
@@ -168,7 +174,7 @@ namespace WebAPI.Service
                         }); */
 
                         // 服务端上传 发布状态变更事件
-                        await _stateService.PublishStateChangedAsync(
+                        await _hubPublisher.PublishStateChangedAsync(
                             clientMsg.MessageType,
                             "collector",
                             "数据采集子进程主动上报的错误消息",
@@ -317,7 +323,7 @@ namespace WebAPI.Service
                     // 重置缓存为默认值（兜底保障）
                     _stateService.ResetCollectorState();
 
-                    await _stateService.PublishStateChangedAsync(
+                    await _hubPublisher.PublishStateChangedAsync(
                         "collector_disconnected",
                         "collector",
                         "采集子进程已断开",

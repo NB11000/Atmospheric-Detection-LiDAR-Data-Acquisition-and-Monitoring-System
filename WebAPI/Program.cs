@@ -137,6 +137,8 @@ namespace WebAPI
             builder.Services.AddSingleton<CniLaserControl.CniLaser>();
             // 注册系统状态服务
             builder.Services.AddSingleton<SystemStateService>();
+            // 注册SignalR统一推送服务
+            builder.Services.AddSingleton<SignalRHubPublisher>();
             // 注册Options（绑定到CaptureCard）
             builder.Services.AddOptions()
                 .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));

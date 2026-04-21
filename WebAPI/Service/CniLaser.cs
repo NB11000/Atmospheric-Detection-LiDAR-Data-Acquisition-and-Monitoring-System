@@ -16,6 +16,7 @@ namespace CniLaserControl
         private const int DefaultBaudRate = 9600;
         private ILogger<CniLaser> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly SignalRHubPublisher _hubPublisher;
         private bool _isEmissionOn;
 
 
@@ -34,10 +35,11 @@ namespace CniLaserControl
         /// </summary>
         public string PortName => _serialPort?.PortName ?? string.Empty;
 
-        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider)
+        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider, SignalRHubPublisher hubPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _hubPublisher = hubPublisher;
         }
 
         /// <summary>
@@ -394,8 +396,7 @@ namespace CniLaserControl
         {
             try
             {
-                var stateService = _serviceProvider.GetRequiredService<SystemStateService>();
-                await stateService.PublishStateChangedAsync(
+                await _hubPublisher.PublishStateChangedAsync(
                     eventType,
                     "laser",
                     reason,

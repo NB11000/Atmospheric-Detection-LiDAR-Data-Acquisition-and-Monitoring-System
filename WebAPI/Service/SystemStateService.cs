@@ -21,7 +21,6 @@ namespace WebAPI.Service
         private readonly GrpcServiceImpl _grpcService;
         private readonly CniLaserControl.CniLaser _laser;
         private readonly ILogger<SystemStateService> _logger;
-        private readonly IHubContext<SystemStateHub> _hubContext;
 
         /// <summary>
         /// 采集卡状态本地缓存（通过命令响应和主动上报推断更新，避免每次快照都发起 IPC）
@@ -54,13 +53,11 @@ namespace WebAPI.Service
         public SystemStateService(
             GrpcServiceImpl grpcService,
             CniLaserControl.CniLaser laser,
-            ILogger<SystemStateService> logger,
-            IHubContext<SystemStateHub> hubContext)
+            ILogger<SystemStateService> logger)
         {
             _grpcService = grpcService;
             _laser = laser;
             _logger = logger;
-            _hubContext = hubContext;
         }
 
         /// <summary>
@@ -235,37 +232,7 @@ namespace WebAPI.Service
             }
         }
 
-        /// <summary>
-        /// 发布StateChanged(状态变更)事件到所有连接的客户端
-        /// <param name="eventType">事件类型</param>
-        /// <param name="source">事件来源</param>
-        /// <param name="reason">变更原因</param>
-        /// <param name="message">UI消息</param>
-        /// StateChangedEvent 包含了事件类型、来源、原因、UI消息、当前系统状态快照和时间戳等信息，供客户端展示和调试使用
-        /// </summary>
-        public async Task PublishStateChangedAsync(string eventType, string source, string reason, string message)
-        {
-            try
-            {
-                var state = GetSystemState(); // 纯本地读取
-                var @event = new StateChangedEvent
-                {
-                    EventType = eventType,
-                    Source = source,
-                    Reason = reason,
-                    Message = message,
-                    State = state,
-                    Timestamp = DateTime.Now
-                };
 
-                await _hubContext.Clients.All.SendAsync(SystemStateHub.SignalREvent.StateChanged.ToString(), @event);
-                _logger.LogInformation("已推送状态变更事件: {EventType} (来源: {Source}, 原因: {Reason})", eventType, source, reason);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "推送状态变更事件失败");
-            }
-        }
 
 
         /// <summary>
