@@ -690,3 +690,15 @@ curl -X GET "http://localhost:5135/api/logs?limit=10&level=Information"
 
 **文档生成时间**: 2026-04-19  
 **项目版本**: 数据采集与检测系统V2.0
+
+
+
+目前的整个项目是这样的，我把原先的w e b a p i项目改造成一个主控进程，这个主控进程将取消原先w e b a p i中的所有web能力只做，一个主控进程 用于托管mqtt客户端,文件系统,以及其他各种各样的系统状态服务。
+
+现在我想让你使用MQTTnet.Extensions.Rpc，来接管webapi中的控制器中的所有逻辑，给我一个计划
+
+
+不删除w e b a p i的主要代码，及保留asp net core框架的能力，让mqtt客户端托管在asp net core框架之上。 
+
+
+方可继续 现在开始实施计划注意。 每完成1步都要暂停由我来审核审核通过。 再继续。 

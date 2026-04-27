@@ -57,27 +57,12 @@ namespace WebAPI
         static void Main(string[] args)
         {
 
-
 #region 服务器配置
 
             var builder = WebApplication.CreateBuilder(args);
+
             // 先清空所有系统默认日志（必须第一步！）
             builder.Logging.ClearProviders();
-
-            // 配置日志（程序启动前就配置）
-/*             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()                  // 默认日志级别
-                .Enrich.FromLogContext()                     //  enrich 上下文信息
-                .WriteTo.Console()                           // 输出到控制台
-                 .WriteTo.File(
-                    path: "logs/log-.txt",                   // 日志文件路径
-                    rollingInterval: RollingInterval.Day,    // 按天切割
-                    fileSizeLimitBytes: 10485760,            // 单个文件最大 10MB
-                    retainedFileCountLimit: 31,              // 最多保留31天
-                    encoding: System.Text.Encoding.UTF8       // UTF8 避免中文乱码
-                )
-                 .WriteTo.InMemory()
-                .CreateLogger(); */
 
             // 用 Serilog 替换默认日志（必须）
             builder.Host.UseSerilog((context, loggerConfig) =>
@@ -125,7 +110,6 @@ namespace WebAPI
 
             // 注册SignalR服务
             builder.Services.AddSignalR();
-
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<UISharedBuffer>();
             // 初始化Grpc服务端通信模块
@@ -186,15 +170,15 @@ namespace WebAPI
 
             app = builder.Build();
 
-
+            // 注册Grpc服务端实现
             app.MapGrpcService<GrpcServiceImpl>();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 Console.WriteLine("当前环境: 开发环境");
-                app.UseSwagger();
-                app.UseSwaggerUI();
+                // app.UseSwagger();
+                // app.UseSwaggerUI();
             }
             if (app.Environment.IsProduction())
             {
@@ -216,8 +200,11 @@ namespace WebAPI
             //app.UseHttpsRedirection();
             //app.UseHttpsRedirection();会把所有 HTTP 请求，
             //强制跳转到 HTTPS 请求，被强行跳去一个不存在的 HTTPS 地址 → 直接返回 404 / 无法访问
+
             app.UseCors("AllowAll");
+
             app.UseAuthorization();
+
             app.MapControllers();
 
             // 映射SignalR Hub端点（使用SignalR专用跨域策略）
@@ -344,10 +331,14 @@ namespace WebAPI
 
 
             app.Run();
+
         }
-
-      
-
-
     }
 }
+
+
+
+
+
+
+

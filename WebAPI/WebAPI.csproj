@@ -16,6 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MQTTnet" Version="5.1.0.1559" />
+    <PackageReference Include="MQTTnet.Extensions.Rpc" Version="5.1.0.1559" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.InMemory" Version="2.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />

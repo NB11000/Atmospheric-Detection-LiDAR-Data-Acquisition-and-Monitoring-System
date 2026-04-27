@@ -178,7 +178,7 @@ namespace WebAPI.Service
                             clientMsg.MessageType,
                             "collector",
                             "数据采集子进程主动上报的错误消息",
-                            clientMsg.Content);
+                            clientMsg.Content); 
 
                     }
                     

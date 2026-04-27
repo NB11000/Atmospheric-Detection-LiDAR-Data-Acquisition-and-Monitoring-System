@@ -123,7 +123,7 @@ namespace ConsoleApp1.Service
                     Program.logger.LogInformation("grpc客户端已启动");
 
                 // 从队列中获取响应消息，并集中发生给grpc服务端（为了保证_responseStreamWriter.WriteAsync的线程安全）
-               var sendResponse = Task.Run(() =>
+                var sendResponse = Task.Run(() =>
                 {
                     AdResponse response = null;
                     while (!_cts.Token.IsCancellationRequested)

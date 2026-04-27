@@ -17,9 +17,6 @@ namespace WebAPI.Service
         /// 采集子进程固定客户端标识
         /// </summary>
         public const string CollectorClientId = "数据采集子进程";
-
-        private readonly GrpcServiceImpl _grpcService;
-        private readonly CniLaserControl.CniLaser _laser;
         private readonly ILogger<SystemStateService> _logger;
 
         /// <summary>
@@ -51,12 +48,8 @@ namespace WebAPI.Service
 
 
         public SystemStateService(
-            GrpcServiceImpl grpcService,
-            CniLaserControl.CniLaser laser,
             ILogger<SystemStateService> logger)
         {
-            _grpcService = grpcService;
-            _laser = laser;
             _logger = logger;
         }
 
@@ -213,23 +206,6 @@ namespace WebAPI.Service
                 CanTurnLaserOn = laserState.SerialConnected && !laserState.EmissionOn,
                 CanTurnLaserOff = laserState.SerialConnected && laserState.EmissionOn
             };
-        }
-
-        /// <summary>
-        /// 检查采集子进程是否已连接
-        /// </summary>
-        private bool IsCollectorConnected()
-        {
-            try
-            {
-                var clients = _grpcService.GetConnectedClients();
-                return Array.Exists(clients, id => id == CollectorClientId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "检查采集子进程连接状态时发生异常");
-                return false;
-            }
         }
 
 

@@ -35,11 +35,11 @@ namespace CniLaserControl
         /// </summary>
         public string PortName => _serialPort?.PortName ?? string.Empty;
 
-        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider, SignalRHubPublisher hubPublisher)
+        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider, SignalRHubPublisher signalRHubPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
-            _hubPublisher = hubPublisher;
+            _hubPublisher = signalRHubPublisher;
         }
 
         /// <summary>
