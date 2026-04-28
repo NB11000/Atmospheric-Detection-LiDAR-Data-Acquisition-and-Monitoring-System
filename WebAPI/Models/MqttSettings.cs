@@ -42,6 +42,21 @@ namespace WebAPI.Models
         public int ReconnectDelaySeconds { get; set; } = 5;
 
         /// <summary>
+        /// 是否启用 TLS/SSL 加密连接（EMQX Serverless 端口 8883 必须为 true）
+        /// </summary>
+        public bool UseTls { get; set; } = false;
+
+        /// <summary>
+        /// 是否允许不受信任的 SSL 证书（仅开发/自签名证书场景启用）
+        /// </summary>
+        public bool AllowUntrustedCertificates { get; set; } = false;
+
+        /// <summary>
+        /// CA 证书文件路径（为空则不加载自定义 CA，仅允许不受信任证书时有效）
+        /// </summary>
+        public string CaCertificatePath { get; set; } = string.Empty;
+
+        /// <summary>
         /// 波形数据 MQTT 发布间隔毫秒数
         /// </summary>
         public int WaveformPublishIntervalMs { get; set; } = 100;

@@ -1,6 +1,8 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +13,7 @@ using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
 using WebAPI.Models;
+using WebAPI.Tools;
 using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service
@@ -91,14 +94,17 @@ namespace WebAPI.Service
             _rpcHandlers = BuildHandlerTable();
 
             // 主题字符串全部在构造时拼接完成
+
+            // RPC 主题前缀（如 $rpc/daq-srv-01/），方法调用时根据此进行路由分发
             _rpcRoutePrefix = $"{RpcTopicPrefix}{settings.MachineId}/";
             _rpcSubscribePattern = $"{RpcTopicPrefix}{settings.MachineId}/#";
+            // 波形数据主题（如 daq/daq-srv-01/waveform/ch1），连接成功后预构建消息模板，发布时仅替换 Payload
             _waveformCh1Topic = $"daq/{settings.MachineId}/waveform/ch1";
             _waveformCh2Topic = $"daq/{settings.MachineId}/waveform/ch2";
 
             // 遗嘱消息：如进程意外崩溃，Broker 据此通知订阅方
             _willPayloadBytes = Encoding.UTF8.GetBytes(
-                "{\"eventType\":\"process_crashed\",\"source\":\"mqtt_broker\",\"reason\":\"will_message\",\"message\":\"进程已异常退出\"}");
+                "{\"eventType\":\"process_crashed\",\"source\":\"mqtt_broker\",\"reason\":\"will_message\",\"message\":\"设备已离线\"}");
 
             // 预分配波形读取缓冲区（按 1000 点×double 固定大小）
             _waveformBuf1 = new double[WaveformFramePoints];
@@ -125,7 +131,15 @@ namespace WebAPI.Service
             _mqttClient.ApplicationMessageReceivedAsync += HandleRpcRequestAsync;
             _eventPublisher.MqttClient = _mqttClient;
 
-            await ConnectAsync(stoppingToken);
+            // 初始连接：失败时不崩溃，由 DisconnectedAsync 事件驱动后续重连
+            try
+            {
+                await ConnectAsync(stoppingToken);
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "MQTT 初始连接失败，等待 DisconnectedAsync 事件驱动重连");
+            }
 
             // 服务运行期间保持活动，直到外部取消信号触发
             try { await Task.Delay(Timeout.Infinite, stoppingToken); }
@@ -137,6 +151,10 @@ namespace WebAPI.Service
         /// 连接与订阅
         /// 流程：构造 MQTT 连接选项（含心跳、遗嘱消息）→ 连接 → 订阅 RPC 主题 → 启动波形发布循环
         /// </summary>
+        /// <summary>
+        /// 连接 Broker 并完成订阅、启动波形发布
+        /// 异常会向上抛出让调用方（ExecuteAsync / OnDisconnectedAsync）自行处理
+        /// </summary>
         private async Task ConnectAsync(CancellationToken ct)
         {
             var settings = _mqttSettings.CurrentValue;
@@ -145,21 +163,66 @@ namespace WebAPI.Service
             var opts = new MqttClientOptionsBuilder()
                 .WithTcpServer(settings.BrokerHost, settings.BrokerPort)
                 .WithClientId(settings.MachineId)
-                .WithCleanSession(true)
+                .WithCleanSession(false)
                 .WithKeepAlivePeriod(TimeSpan.FromSeconds(30))
                 .WithTimeout(TimeSpan.FromSeconds(10));
             // 如果配置了用户名，添加认证信息
             if (!string.IsNullOrEmpty(settings.Username))
                 opts.WithCredentials(settings.Username, settings.Password);
+            // TLS/SSL 配置（EMQX Serverless 端口 8883 必须启用）
+            if (settings.UseTls)
+            {
+                opts.WithTlsOptions(tls =>
+                    {
+                        tls.UseTls();
+                        tls.WithSslProtocols(SslProtocols.Tls12 | SslProtocols.Tls13);
+                        
+                        // 如果提供了CA证书,加载它
+                        if (!string.IsNullOrEmpty(settings.CaCertificatePath))
+                        {
+                            var caCert = new X509Certificate2(settings.CaCertificatePath);
+                            tls.WithClientCertificates(new[] { caCert });
+                        }
+                        
+                        // 证书验证回调
+                        tls.WithCertificateValidationHandler(context =>
+                        {
+                            var certificate = context.Certificate as X509Certificate2;
+                            
+                            // 测试环境: 接受所有证书
+                            // return true;
+                            
+                            // 生产环境: 严格证书验证
+                            return Tool.ValidateServerCertificate(certificate, context.Chain, context.SslPolicyErrors);
+                        });
+                    });   
+            }
             // 遗嘱消息：如进程意外崩溃，Broker 据此通知订阅方
-            opts.WithWillTopic($"daq/{settings.MachineId}/events/state_changed")
+            opts.WithWillTopic($"daq/{settings.MachineId}/events/will")
                .WithWillPayload(_willPayloadBytes)
                .WithWillQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
                .WithWillRetain(true);
-            // （可选）启用 TLS 加密连接
-            await _mqttClient!.ConnectAsync(opts.Build(), ct);
+
+            // 连接MQTT服务器
+            var result = await _mqttClient!.ConnectAsync(opts.Build(), ct);
+            if (result.ResultCode != MqttClientConnectResultCode.Success)
+            {
+                throw new InvalidOperationException(
+                    $"MQTT 连接被拒绝: {result.ResultCode} — {result.ReasonString ?? "无详细信息"}。请检查 Broker 地址、端口、认证凭据。");
+            }
+            // EMQX账号密码认证是必须的，如未配置则警告
+            if (settings.UseTls && string.IsNullOrEmpty(settings.Username))
+            {
+                _logger.LogWarning("EMQX Serverless 需要用户名/密码认证，请在 appsettings.json 的 Mqtt.Username / Mqtt.Password 中填入凭据");
+            }
             _logger.LogInformation("MQTT 已连接 {Host}:{Port} ClientId={ClientId}",
                 settings.BrokerHost, settings.BrokerPort, settings.MachineId);
+
+            // 确保在订阅前连接依然有效（Broker 可能在连接后立即因认证失败而断连）
+            if (!_mqttClient.IsConnected)
+            {
+                throw new InvalidOperationException("MQTT 已连接但立即断开，可能是认证凭据无效或 Broker 拒绝了连接");
+            }
 
             // 预构建波形消息模板（Topic + QOS 固定，每帧替换 Payload 即可）
             _ch1Template = new MqttApplicationMessageBuilder()
@@ -170,7 +233,7 @@ namespace WebAPI.Service
                 .WithTopic(_waveformCh2Topic)
                 .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtMostOnce)
                 .Build();
-
+            // 订阅
             await _mqttClient.SubscribeAsync(
                 new MqttClientSubscribeOptionsBuilder()
                     .WithTopicFilter(_rpcSubscribePattern, MqttQualityOfServiceLevel.AtLeastOnce)
@@ -219,7 +282,8 @@ namespace WebAPI.Service
                 return;
 
             var payload = e.ApplicationMessage.Payload.ToArray();
-
+            // MQTT 5.0 规范中，响应主题可由请求消息携带 ResponseTopic 属性指定；
+            // 如果没有，则按约定使用 "请求主题/response" 作为响应主题
             // 响应主题：优先取 MQTT 5.0 ResponseTopic，否则按约定拼接
             var responseTopic = e.ApplicationMessage.ResponseTopic;
             if (string.IsNullOrEmpty(responseTopic))

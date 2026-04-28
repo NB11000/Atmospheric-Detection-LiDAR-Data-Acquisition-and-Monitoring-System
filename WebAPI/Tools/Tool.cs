@@ -2,8 +2,10 @@ using Serilog;
 using System;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Security.Cryptography.X509Certificates;
 using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Tools;
@@ -136,6 +138,65 @@ public class Tool
                 logger.LogInformation("WebSocket UI数据流连接已关闭");
                 stopwatch.Stop();
             }
+        }
+
+
+        /// <summary>
+        /// 验证服务器证书
+        /// </summary>
+        public static bool ValidateServerCertificate(X509Certificate2 certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            // 如果没有错误,直接通过
+            if (sslPolicyErrors == SslPolicyErrors.None)
+            {
+                return true;
+            }
+    ﻿
+            // 如果证书为空,拒绝
+            if (certificate == null)
+            {
+                Log.Information("证书验证失败: 证书为空");
+                return false;
+            }
+    ﻿
+            // 1. 检查证书有效期
+            DateTime now = DateTime.Now;
+            if (now < certificate.NotBefore || now > certificate.NotAfter)
+            {
+                Log.Information($"证书验证失败: 证书已过期或尚未生效 (有效期: {certificate.NotBefore} - {certificate.NotAfter})");
+                return false;
+            }
+    ﻿
+            // 2. 检查证书链
+            if (chain != null && chain.ChainStatus.Length > 0)
+            {
+                foreach (var status in chain.ChainStatus)
+                {
+                    // 忽略离线吊销检查错误(可选)
+                    if (status.Status == X509ChainStatusFlags.RevocationStatusUnknown ||
+                        status.Status == X509ChainStatusFlags.OfflineRevocation)
+                    {
+                        continue;
+                    }
+                    
+                    if (status.Status != X509ChainStatusFlags.NoError)
+                    {
+                        Log.Information($"证书验证失败: {status.StatusInformation}");
+                        return false;
+                    }
+                }
+            }
+    ﻿
+            // 3. 检查证书主题名称(可选,根据实际需求)
+            // string expectedSubject = "CN=*.mqtt.tencenttdmq.com";
+            // if (!certificate.Subject.Contains(expectedSubject))
+            // {
+            //     Console.WriteLine($"证书验证失败: 主题不匹配 (期望: {expectedSubject}, 实际: {certificate.Subject})");
+            //     return false;
+            // }
+    ﻿
+            Log.Information("证书验证通过");
+            return true;
         }
 
 }

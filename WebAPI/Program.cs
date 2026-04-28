@@ -61,6 +61,12 @@ namespace WebAPI
 
             var builder = WebApplication.CreateBuilder(args);
 
+            // 配置：后台服务异常时，不停止整个程序
+            builder.Services.Configure<HostOptions>(options =>
+            {
+                options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+            });
+
             // 先清空所有系统默认日志（必须第一步！）
             builder.Logging.ClearProviders();
 
