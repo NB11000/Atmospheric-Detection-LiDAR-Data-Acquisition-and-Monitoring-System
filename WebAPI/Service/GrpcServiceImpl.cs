@@ -64,17 +64,23 @@ namespace WebAPI.Service
         private readonly SystemStateService _stateService;
 
         /// <summary>
-        /// SignalR统一推送服务实例（用于推送消息到前端）
+        /// SignalR统一推送服务实例（用于推送消息到前端，保留作为兼容过渡通道）
         /// </summary>
         private readonly SignalRHubPublisher _hubPublisher;
 
+        /// <summary>
+        /// MQTT 事件发布器，替代 SignalR 作为主事件推送通道
+        /// </summary>
+        private readonly MqttEventPublisher _mqttEventPublisher;
+
         public GrpcServiceImpl(ILogger<GrpcServiceImpl> logger, IServiceProvider serviceProvider,
-        SystemStateService stateService, SignalRHubPublisher hubPublisher)
+        SystemStateService stateService, SignalRHubPublisher hubPublisher, MqttEventPublisher mqttEventPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _stateService = stateService;
             _hubPublisher = hubPublisher;
+            _mqttEventPublisher = mqttEventPublisher;
         }
 
         /// <summary>
@@ -121,7 +127,13 @@ namespace WebAPI.Service
                                     Handle = 0,
                                     LastMessage = "采集子进程已连接，等待设备操作"
                                 });
-                            
+
+                                // MQTT 主通道：推送采集子进程连接事件（异步不等待）
+                                _ = _mqttEventPublisher.PublishStateChangedAsync(
+                                    "collector_connected",
+                                    "collector",
+                                    "采集子进程已连接",
+                                    "数据采集子进程连接已建立");
                             }
                             catch (Exception ex)
                             {
@@ -173,7 +185,14 @@ namespace WebAPI.Service
                             _vm.Status = $"收到[{processId}]错误消息：{clientMsg.Content}";
                         }); */
 
-                        // 服务端上传 发布状态变更事件
+                        // MQTT 主通道：推送错误事件（异步不等待，SignalR 保留作为兼容通道）
+                        _ = _mqttEventPublisher.PublishStateChangedAsync(
+                            clientMsg.MessageType,
+                            "collector",
+                            "数据采集子进程主动上报的错误消息",
+                            clientMsg.Content);
+
+                        // SignalR 兼容通道：发布状态变更事件
                         await _hubPublisher.PublishStateChangedAsync(
                             clientMsg.MessageType,
                             "collector",
@@ -323,6 +342,14 @@ namespace WebAPI.Service
                     // 重置缓存为默认值（兜底保障）
                     _stateService.ResetCollectorState();
 
+                    // MQTT 主通道：推送采集子进程断开事件（异步不等待）
+                    _ = _mqttEventPublisher.PublishStateChangedAsync(
+                        "collector_disconnected",
+                        "collector",
+                        "采集子进程已断开",
+                        "数据采集子进程连接已断开");
+
+                    // SignalR 兼容通道
                     await _hubPublisher.PublishStateChangedAsync(
                         "collector_disconnected",
                         "collector",

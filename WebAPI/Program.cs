@@ -123,6 +123,19 @@ namespace WebAPI
             builder.Services.AddSingleton<SystemStateService>();
             // 注册SignalR统一推送服务
             builder.Services.AddSingleton<SignalRHubPublisher>();
+            // ===== MQTT RPC 主通道服务注册 =====
+            // 绑定 MQTT 配置选项
+            builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
+            // MQTT 事件发布器（单例，替代 SignalR 作为主事件推送通道）
+            builder.Services.AddSingleton<MqttEventPublisher>();
+            // 注册 4 个 MQTT RPC Handler（单例，通过 DI 注入共享服务层）
+            builder.Services.AddSingleton<MqttRpc.CollectorHandler>();
+            builder.Services.AddSingleton<MqttRpc.LaserHandler>();
+            builder.Services.AddSingleton<MqttRpc.SystemHandler>();
+            builder.Services.AddSingleton<MqttRpc.LogHandler>();
+            // 将 MQTT RPC 服务作为 ASP.NET Core BackgroundService 托管
+            builder.Services.AddHostedService<MqttRpcBackgroundService>();
+            // ====================================
             // 注册Options（绑定到CaptureCard）
             builder.Services.AddOptions()
                 .Configure<CaptureCardConfig>(ConfigHelper.Config.GetSection("CaptureCard"));

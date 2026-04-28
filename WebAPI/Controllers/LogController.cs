@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using WebAPI.Models;
 
 namespace WebAPI.Controllers
 {
@@ -247,35 +248,4 @@ namespace WebAPI.Controllers
         }
     }
 
-    /// <summary>
-    /// 日志条目数据传输对象
-    /// 用于序列化Serilog日志事件，供前端反序列化
-    /// </summary>
-    public class LogEntryDto
-    {
-        /// <summary>
-        /// 日志时间戳
-        /// </summary>
-        public DateTimeOffset Timestamp { get; set; }
-
-        /// <summary>
-        /// 日志级别（字符串表示）
-        /// </summary>
-        public string Level { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 日志消息
-        /// </summary>
-        public string Message { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 异常信息（如果有）
-        /// </summary>
-        public string? Exception { get; set; }
-
-        /// <summary>
-        /// 日志属性字典
-        /// </summary>
-        public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
-    }
 }
