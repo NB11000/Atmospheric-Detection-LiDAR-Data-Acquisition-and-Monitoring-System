@@ -14,23 +14,21 @@ using MQTTnet;
 using MQTTnet.Protocol;
 using WebAPI.Models;
 using WebAPI.Tools;
-using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service
 {
     /// <summary>
-    /// MQTT RPC 后台服务 — 托管 MQTT 客户端完整生命周期
+    /// MQTT RPC 后台服务 — 托管 MQTT 客户端完整生命周期，纯 RPC 路由职责
     /// </summary>
     public class MqttRpcBackgroundService : BackgroundService
     {
         private const string RpcTopicPrefix = "$rpc/";
-        private const int WaveformFramePoints = 1000;
-        private const int WaveformFrameBytes = WaveformFramePoints * sizeof(double);
 
         // ── 依赖注入 ──────────────────────────────────────────
         private readonly IServiceProvider _serviceProvider;
         private readonly IOptionsMonitor<MqttSettings> _mqttSettings;
         private readonly MqttEventPublisher _eventPublisher;
+        private readonly WaveformPublishService _waveformPublishService;
         private readonly ILogger<MqttRpcBackgroundService> _logger;
 
         // ── RPC 方法路由（启动时构建一次） ──────────────────────
@@ -39,25 +37,11 @@ namespace WebAPI.Service
         // ── 预计算的 MQTT 主题字符串 ────────────────────────────
         private readonly string _rpcRoutePrefix;
         private readonly string _rpcSubscribePattern;
-        private readonly string _waveformCh1Topic;
-        private readonly string _waveformCh2Topic;
-
-        // ── 波形写入缓冲（双通道 1000×double，写入后 BlockCopy 至 _ch1Bytes / _ch2Bytes）──
-        private double[] _waveformBuf1;
-        private double[] _waveformBuf2;
-
-        // ── 波形发布复用缓冲区（从 ArrayPool 租用，服务停止时归还）──
-        private byte[] _ch1Bytes;
-        private byte[] _ch2Bytes;
 
         /// <summary>
         /// ── 遗嘱消息负载（进程意外退出时 Broker 代为发布）───────
         /// </summary>
         private readonly byte[] _willPayloadBytes;
-
-        // ── 波形消息模板（Topic + QOS 固定，每帧仅换 Payload）────
-        private MqttApplicationMessage? _ch1Template;
-        private MqttApplicationMessage? _ch2Template;
 
         // ── 预构建的 RPC 错误响应片段（运行时拼入方法名）──────────
         private static readonly byte[] _errUnknownMethodHead =
@@ -71,7 +55,6 @@ namespace WebAPI.Service
         private readonly SemaphoreSlim _reconnectLock = new(1, 1);
         private bool _shouldReconnect = true;
         private IMqttClient? _mqttClient;
-        private CancellationTokenSource? _waveformCts;
 
         // ══════════════════════════════════════════════════════════
         //  构造函数
@@ -81,11 +64,13 @@ namespace WebAPI.Service
             IServiceProvider serviceProvider,
             IOptionsMonitor<MqttSettings> mqttSettings,
             MqttEventPublisher eventPublisher,
+            WaveformPublishService waveformPublishService,
             ILogger<MqttRpcBackgroundService> logger)
         {
             _serviceProvider = serviceProvider;
             _mqttSettings = mqttSettings;
             _eventPublisher = eventPublisher;
+            _waveformPublishService = waveformPublishService;
             _logger = logger;
 
             var settings = _mqttSettings.CurrentValue;
@@ -93,26 +78,13 @@ namespace WebAPI.Service
             // 启动时构建 RPC 方法路由表，后续重连不再重建
             _rpcHandlers = BuildHandlerTable();
 
-            // 主题字符串全部在构造时拼接完成
-
             // RPC 主题前缀（如 $rpc/daq-srv-01/），方法调用时根据此进行路由分发
             _rpcRoutePrefix = $"{RpcTopicPrefix}{settings.MachineId}/";
             _rpcSubscribePattern = $"{RpcTopicPrefix}{settings.MachineId}/#";
-            // 波形数据主题（如 daq/daq-srv-01/waveform/ch1），连接成功后预构建消息模板，发布时仅替换 Payload
-            _waveformCh1Topic = $"daq/{settings.MachineId}/waveform/ch1";
-            _waveformCh2Topic = $"daq/{settings.MachineId}/waveform/ch2";
 
             // 遗嘱消息：如进程意外崩溃，Broker 据此通知订阅方
             _willPayloadBytes = Encoding.UTF8.GetBytes(
                 "{\"eventType\":\"process_crashed\",\"source\":\"mqtt_broker\",\"reason\":\"will_message\",\"message\":\"设备已离线\"}");
-
-            // 预分配波形读取缓冲区（按 1000 点×double 固定大小）
-            _waveformBuf1 = new double[WaveformFramePoints];
-            _waveformBuf2 = new double[WaveformFramePoints];
-
-            // 从 ArrayPool 租用字节缓冲区，波形循环内复用
-            _ch1Bytes = ArrayPool<byte>.Shared.Rent(WaveformFrameBytes);
-            _ch2Bytes = ArrayPool<byte>.Shared.Rent(WaveformFrameBytes);
         }
 
         // ══════════════════════════════════════════════════════════
@@ -148,11 +120,7 @@ namespace WebAPI.Service
 
 
         /// <summary>
-        /// 连接与订阅
-        /// 流程：构造 MQTT 连接选项（含心跳、遗嘱消息）→ 连接 → 订阅 RPC 主题 → 启动波形发布循环
-        /// </summary>
-        /// <summary>
-        /// 连接 Broker 并完成订阅、启动波形发布
+        /// 连接 Broker 并完成订阅
         /// 异常会向上抛出让调用方（ExecuteAsync / OnDisconnectedAsync）自行处理
         /// </summary>
         private async Task ConnectAsync(CancellationToken ct)
@@ -224,16 +192,7 @@ namespace WebAPI.Service
                 throw new InvalidOperationException("MQTT 已连接但立即断开，可能是认证凭据无效或 Broker 拒绝了连接");
             }
 
-            // 预构建波形消息模板（Topic + QOS 固定，每帧替换 Payload 即可）
-            _ch1Template = new MqttApplicationMessageBuilder()
-                .WithTopic(_waveformCh1Topic)
-                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtMostOnce)
-                .Build();
-            _ch2Template = new MqttApplicationMessageBuilder()
-                .WithTopic(_waveformCh2Topic)
-                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtMostOnce)
-                .Build();
-            // 订阅
+            // 订阅 RPC 主题
             await _mqttClient.SubscribeAsync(
                 new MqttClientSubscribeOptionsBuilder()
                     .WithTopicFilter(_rpcSubscribePattern, MqttQualityOfServiceLevel.AtLeastOnce)
@@ -241,11 +200,11 @@ namespace WebAPI.Service
                 ct);
             _logger.LogInformation("已订阅 RPC 主题: {Topic}", _rpcSubscribePattern);
 
-            // 启动后台波形发布循环
-            _waveformCts?.Cancel();
-            _waveformCts?.Dispose();
-            _waveformCts = new CancellationTokenSource();
-            _ = PublishWaveformLoopAsync(_waveformCts.Token);
+            // 若当前采集状态为 Acquiring=true，通知 WaveformPublishService 恢复波形发布
+            if (_serviceProvider.GetRequiredService<SystemStateService>().GetCollectorState().Acquiring)
+            {
+                _waveformPublishService.Start();
+            }
 
             _logger.LogInformation("RPC 服务端就绪，已注册 {Count} 个方法", _rpcHandlers.Count);
         }
@@ -362,57 +321,6 @@ namespace WebAPI.Service
         }
 #endregion
 
-  
-        /// <summary>
-        /// 波形数据发布循环：持续运行直到取消 → 每隔固定间隔 → 从共享内存读取最新双通道波形帧 → BlockCopy 到字节缓冲区 → 并行发布到 MQTT
-        /// 按固定间隔从共享内存读取双通道波形帧 → BlockCopy 到复用缓冲区 → 并行发布到 MQTT
-        /// </summary>
-        private async Task PublishWaveformLoopAsync(CancellationToken ct)
-        {
-            var uiBuffer = _serviceProvider.GetRequiredService<UISharedBuffer>();
-            var interval = _mqttSettings.CurrentValue.WaveformPublishIntervalMs;
-
-            _logger.LogInformation("波形发布循环启动 间隔={Interval}ms", interval);
-
-            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(interval));
-            while (await timer.WaitForNextTickAsync(ct))
-            {
-                if (_mqttClient?.IsConnected != true)
-                    continue;
-
-                try
-                {
-                    uiBuffer.ReadLatestFrame(ref _waveformBuf1, ref _waveformBuf2);
-
-                    Buffer.BlockCopy(_waveformBuf1, 0, _ch1Bytes, 0, WaveformFrameBytes);
-                    Buffer.BlockCopy(_waveformBuf2, 0, _ch2Bytes, 0, WaveformFrameBytes);
-
-                    var msg1 = new MqttApplicationMessage
-                    {
-                        Topic = _ch1Template!.Topic,
-                        QualityOfServiceLevel = _ch1Template.QualityOfServiceLevel,
-                        PayloadSegment = new ArraySegment<byte>(_ch1Bytes, 0, WaveformFrameBytes)
-                    };
-                    var msg2 = new MqttApplicationMessage
-                    {
-                        Topic = _ch2Template!.Topic,
-                        QualityOfServiceLevel = _ch2Template.QualityOfServiceLevel,
-                        PayloadSegment = new ArraySegment<byte>(_ch2Bytes, 0, WaveformFrameBytes)
-                    };
-
-                    await Task.WhenAll(
-                        _mqttClient.PublishAsync(msg1, ct),
-                        _mqttClient.PublishAsync(msg2, ct));
-                }
-                catch (Exception ex) when (!ct.IsCancellationRequested)
-                {
-                    _logger.LogWarning(ex, "波形发布失败，下次循环重试");
-                }
-            }
-
-            _logger.LogInformation("波形发布循环已停止");
-        }
-
 
         /// <summary>
         /// 断线重连事件回调 → 根据断开原因和服务状态决定是否触发重连 → 指数退避重连（避免短时间内频繁重试）
@@ -423,7 +331,7 @@ namespace WebAPI.Service
             _logger.LogWarning("MQTT 断开 Reason={Reason} WasConnected={WasConnected}",
                 args.Reason, args.ClientWasConnected);
 
-            _waveformCts?.Cancel();
+            _waveformPublishService.Stop();
 
             if (!_shouldReconnect)
             {
@@ -478,7 +386,7 @@ namespace WebAPI.Service
 
         /// <summary>
         /// 服务停止
-        /// 流程：设置重连标志 → 获取重连锁确保无并发 → 停波形循环 → 注销事件 → 断开 Broker → 释放 MQTT 客户端
+        /// 流程：设置重连标志 → 获取重连锁确保无并发 → 注销事件 → 断开 Broker → 释放 MQTT 客户端
         /// </summary>
         public override async Task StopAsync(CancellationToken ct)
         {
@@ -490,8 +398,6 @@ namespace WebAPI.Service
             await _reconnectLock.WaitAsync(ct);
             try
             {
-                _waveformCts?.Cancel();
-
                 if (_mqttClient != null)
                 {
                     _mqttClient.DisconnectedAsync -= OnDisconnectedAsync;
@@ -520,15 +426,11 @@ namespace WebAPI.Service
 
         /// <summary>
         /// 服务销毁
-        /// 归还 ArrayPool 租用的缓冲区并释放同步原语
+        /// 释放同步原语
         /// </summary>
         public override void Dispose()
         {
-            if (_ch1Bytes != null) { ArrayPool<byte>.Shared.Return(_ch1Bytes); _ch1Bytes = null!; }
-            if (_ch2Bytes != null) { ArrayPool<byte>.Shared.Return(_ch2Bytes); _ch2Bytes = null!; }
-
             _reconnectLock?.Dispose();
-            _waveformCts?.Dispose();
 
             base.Dispose();
         }

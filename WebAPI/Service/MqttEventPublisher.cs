@@ -188,5 +188,47 @@ namespace WebAPI.Service
                 _logger.LogError(ex, "MQTT 推送数据更新事件失败");
             }
         }
+
+        /// <summary>
+        /// 发布双通道波形数据到 MQTT（二进制格式，无 JSON 序列化）
+        /// 发布到主题：daq/{machineId}/waveform/ch1 和 daq/{machineId}/waveform/ch2
+        /// QOS 0（至多一次），高频发布允许丢帧以保证低延迟
+        /// </summary>
+        /// <param name="ch1Payload">通道1波形负载（1000点 × double = 8KB）</param>
+        /// <param name="ch2Payload">通道2波形负载（1000点 × double = 8KB）</param>
+        /// <param name="frameBytes">单通道字节数（默认 8000，与共享内存帧大小一致）</param>
+        public async Task PublishWaveformDataAsync(byte[] ch1Payload, byte[] ch2Payload, int frameBytes)
+        {
+            if (MqttClient == null || !MqttClient.IsConnected)
+            {
+                return;
+            }
+
+            try
+            {
+                var machineId = _mqttSettings.CurrentValue.MachineId;
+
+                var msg1 = new MqttApplicationMessage
+                {
+                    Topic = $"daq/{machineId}/waveform/ch1",
+                    QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce,
+                    PayloadSegment = new ArraySegment<byte>(ch1Payload, 0, frameBytes)
+                };
+                var msg2 = new MqttApplicationMessage
+                {
+                    Topic = $"daq/{machineId}/waveform/ch2",
+                    QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce,
+                    PayloadSegment = new ArraySegment<byte>(ch2Payload, 0, frameBytes)
+                };
+
+                await Task.WhenAll(
+                    MqttClient.PublishAsync(msg1),
+                    MqttClient.PublishAsync(msg2));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "MQTT 推送波形数据失败，下次循环重试");
+            }
+        }
     }
 }

@@ -20,6 +20,12 @@ namespace WebAPI.Service
         private readonly ILogger<SystemStateService> _logger;
 
         /// <summary>
+        /// 采集状态变更事件（true=开始采集，false=停止采集）
+        /// WaveformPublishService 订阅此事件以驱动波形发布循环启停
+        /// </summary>
+        public event Action<bool>? AcquiringStateChanged;
+
+        /// <summary>
         /// 采集卡状态本地缓存（通过命令响应和主动上报推断更新，避免每次快照都发起 IPC）
         /// 使用 volatile 保证多线程可见性，更新时采用整体替换（不可变对象模式）
         /// </summary>
@@ -56,16 +62,24 @@ namespace WebAPI.Service
         /// <summary>
         /// 更新采集卡状态缓存（由 GrpcServiceImpl 在收到消息时调用）
         /// 使用不可变对象替换模式，确保并发读写安全
+        /// 当 Acquiring 属性值发生变化时触发 AcquiringStateChanged 事件
         /// </summary>
         /// <param name="updater">状态更新函数，接收当前状态副本，返回新状态</param>
         public void UpdateCollectorState(Func<CollectorStateDto, CollectorStateDto> updater)
         {
             var current = _cachedCollectorState;
+            var oldAcquiring = current.Acquiring;
             var newState = updater(current);
             newState.Timestamp = DateTime.Now;
             _cachedCollectorState = newState; // volatile 写，保证可见性
             _logger.LogDebug("采集卡状态缓存已更新: ProcessConnected={Connected}, DeviceOpened={Opened}, Acquiring={Acquiring}",
                 newState.ProcessConnected, newState.DeviceOpened, newState.Acquiring);
+
+            // Acquiring 值变化时通知订阅方
+            if (oldAcquiring != newState.Acquiring)
+            {
+                AcquiringStateChanged?.Invoke(newState.Acquiring);
+            }
         }
 
         /// <summary>
@@ -85,9 +99,11 @@ namespace WebAPI.Service
 
         /// <summary>
         /// 重置采集卡状态缓存为默认值（子进程断开时调用）
+        /// 当 Acquiring 从 true 变为 false 时触发 AcquiringStateChanged 事件
         /// </summary>
         public void ResetCollectorState()
         {
+            var oldAcquiring = _cachedCollectorState.Acquiring;
             _cachedCollectorState = new CollectorStateDto
             {
                 ProcessConnected = false,
@@ -98,6 +114,11 @@ namespace WebAPI.Service
                 Timestamp = DateTime.Now
             };
             _logger.LogInformation("采集卡状态缓存已重置");
+
+            if (oldAcquiring)
+            {
+                AcquiringStateChanged?.Invoke(false);
+            }
         }
 
         /// <summary>

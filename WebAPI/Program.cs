@@ -134,6 +134,9 @@ namespace WebAPI
             builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
             // MQTT 事件发布器（单例，替代 SignalR 作为主事件推送通道）
             builder.Services.AddSingleton<MqttEventPublisher>();
+            // 波形发布后台服务（单例，由 AcquiringStateChanged 事件驱动启停）
+            builder.Services.AddSingleton<WaveformPublishService>();
+            builder.Services.AddHostedService<WaveformPublishService>(sp => sp.GetRequiredService<WaveformPublishService>());
             // 注册 4 个 MQTT RPC Handler（单例，通过 DI 注入共享服务层）
             builder.Services.AddSingleton<MqttRpc.CollectorHandler>();
             builder.Services.AddSingleton<MqttRpc.LaserHandler>();
