@@ -1,0 +1,125 @@
+@startuml 高频数据采集与分发系统V2.0_架构图
+!theme plain
+
+skinparam backgroundColor #FAFAFA
+skinparam packageFontSize 13
+skinparam packageFontStyle bold
+skinparam defaultFontName Microsoft YaHei
+
+' ===== 图例 =====
+legend right
+  |= 颜色 |= 层级 |
+  |<#E8F5E9>| 数据采集与结构化层 |
+  |<#FFF3E0>| 核心数据总线层 |
+  |<#E3F2FD>| 数据持久化层 |
+  |<#F3E5F5>| 数据分发层 |
+  |<#FFEBEE>| 数据检测与工况判别层 |
+  |<#FFFDE7>| MMF/共享内存 |
+  |<#E0F2F1>| MQTT 发布 |
+endlegend
+
+title **高频数据采集与分发系统 V2.0 — 架构总览**
+
+' =====================================================
+' 1. 子进程 (ConsoleApp1)
+' =====================================================
+package "子进程 ConsoleApp1 (数据采集与预处理)" as ChildProcess #E8EAF6 {
+
+  ' 1.1 4个内部线程
+  rectangle ADWork as "ADWork\n(数据采集线程)" #E8F5E9
+  rectangle ADDraw as "ADDraw\n(数据预处理线程)" #E8F5E9
+  rectangle Analysis as "Analysis\n(结构化分析线程)" #E8F5E9
+  rectangle UIThread as "UI刷新线程" #F3E5F5
+
+  rectangle Detection as "数据检测分析线程" #FFEBEE
+  rectangle Persist as "数据持久化线程" #E3F2FD
+
+  ' 内部 Channel 数据流
+  ADWork -right-> ADDraw : Channel<Data_Block>\n原始二进制数据
+  ADDraw -right-> Analysis : Channel<Voltage_block>\n电压值
+  ADDraw --> UIThread : 直读原始电压值\n(文档关键设计)
+}
+
+' =====================================================
+' 2. 数据总线层 (MMF)
+' =====================================================
+rectangle "核心数据总线\nRawRingBuffer (环形缓冲区+MMF)\n单写多读·写指针前一段" as RawBus #FFF3E0
+
+rectangle "UI专用缓冲区\nUISharedBuffer (独立MMF)\n隔离·BufferLength>PixelCount" as UIBuffer #FFFDE7
+
+' 数据流向: Analysis → 核心总线
+Analysis -down-> RawBus : 结构化数据写入\n(CH1/CH2/Vis/Cn2)
+
+' 数据流向: 核心总线 → 各读取端
+RawBus -down-> Detection : "读取写指针前一段\n(高频实时检测)"
+RawBus -right-> Persist : "周期读取\n(1s/5s/30s/1min)"
+RawBus --> [低频UI分发] : "7s周期\n(低频数据)"
+
+' 数据流向: UI线程 → UI专用缓冲区
+UIThread -down-> UIBuffer : "降采样1000:1\nWriteSampleBatch()"
+
+' =====================================================
+' 3. 主进程 (WebAPI)
+' =====================================================
+package "主进程 WebAPI (托管+发布)" as MainProcess #F1F8E9 {
+
+  rectangle WaveformPub as "WaveformPublishService\n(主控进程)" #F1F8E9
+  rectangle MqttRpc as "MQTT RPC 主通道服务\nCollector/Laser/System/Log" #F1F8E9
+  rectangle WebSocket as "WebSocket / SignalR\n实时推送" #F1F8E9
+}
+
+' 主进程从UI专用缓冲区读取
+UIBuffer -down-> WaveformPub : ReadLatestFrame()\n33ms周期
+
+' =====================================================
+' 4. MQTT 服务器
+' =====================================================
+rectangle "MQTT 服务器\n(EMQX / Mosquitto)" as MqttBroker #E0F2F1
+
+rectangle "低频Topic" as LowTopic #E0F2F1
+rectangle "实时Topic" as RealTopic #E0F2F1
+rectangle "告警Topic" as AlarmTopic #E0F2F1
+
+MqttBroker --> LowTopic
+MqttBroker --> RealTopic
+MqttBroker --> AlarmTopic
+
+' MQTT 发布连接
+WaveformPub -right-> RealTopic : 实时波形数据
+[低频UI分发] -right-> LowTopic : 低频统计数据
+Detection -right-> AlarmTopic : 异常告警事件
+
+' =====================================================
+' 5. 前端
+' =====================================================
+rectangle "前端 Web 界面\n趋势图表·波形渲染·告警弹窗" as Frontend #FBE9E7
+
+LowTopic -down-> Frontend : 订阅
+RealTopic -down-> Frontend : 订阅
+AlarmTopic -down-> Frontend : 订阅
+WebSocket -right-> Frontend : WebSocket直连
+
+' =====================================================
+' 6. 外部硬件
+' =====================================================
+rectangle "采集硬件\n(1MHz 采样卡)" as Hardware #FFCCBC
+Hardware -down-> ADWork : 原始二进制数据
+
+' ===== 设计要点标注 =====
+note bottom of RawBus
+  **核心数据总线关键设计:**
+  1. 单写多读, 无需加锁
+  2. 所有读取端读"写指针前一段"
+  3. 写指针永远领先读指针
+  4. 缓冲区大小适配 1MHz 采集率
+end note
+
+note right of UIBuffer
+  **UI专用缓冲区隔离设计:**
+  1. 与核心总线物理隔离
+  2. 仅服务高频实时链路
+  3. 降采样比 1000:1
+  4. 主控进程唯一数据源
+end note
+
+@enduml

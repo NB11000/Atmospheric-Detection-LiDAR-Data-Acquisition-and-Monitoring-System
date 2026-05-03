@@ -3,6 +3,7 @@ using AvaloniaApplication1.Models;
 using ConsoleApp1.Models;
 using ConsoleApp1.Tools;
 using Microsoft.Extensions.Logging;
+using SharedMemoryFramework;
 using System;
 using System.Buffers;
 using System.Collections;
@@ -47,6 +48,7 @@ namespace ConsoleApp1.Service
         Thread s2;
         Thread s3;
         Thread s4;
+        Thread s5;
         List<Thread> AllThread = new List<Thread>();
         //private CaptureCardConfig deviceConfig; // 获取当前设备配置
         //private readonly MainWindowViewModel vm; // MainWindow的视图模型
@@ -71,6 +73,9 @@ namespace ConsoleApp1.Service
             SingleReader = true,
             AllowSynchronousContinuations = true // 同步续体
         });
+
+        // 检测数据通道（携带实际采样点数，避免 Rent 零值尾部落入检测逻辑）
+        public static Channel<DetectionBatch> DetectionCh;
 
 
         /// <summary>
@@ -206,6 +211,21 @@ namespace ConsoleApp1.Service
                         ArrayPool<double>.Shared.Return(dropped.Voltage2);
                 }
             );
+
+            // 检测数据通道（携带实际采样点数）
+            DetectionCh = Channel.CreateBounded<DetectionBatch>(
+                new BoundedChannelOptions(8)
+                {
+                    FullMode = BoundedChannelFullMode.DropOldest,
+                    SingleWriter = true,
+                    SingleReader = true,
+                    AllowSynchronousContinuations = true
+                },
+                dropped =>
+                {
+                    if (dropped.Samples != null)
+                        ArrayPool<StructuredSample>.Shared.Return(dropped.Samples);
+                });
         }
 
         /// <summary>
@@ -256,11 +276,17 @@ namespace ConsoleApp1.Service
                     ArrayPool<double>.Shared.Return(block.Voltage2);
                 }
             }
+            while (DetectionCh.Reader.TryRead(out var batch))
+            {
+                if (batch.Samples != null)
+                    ArrayPool<StructuredSample>.Shared.Return(batch.Samples);
+            }
 
             /// 清理旧通道的引用，方便GC回收
             channel = null;
             Analysischannel = null;
             UIchannel = null;
+            DetectionCh = null;
             cts = null;
 
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌
@@ -703,51 +729,65 @@ namespace ConsoleApp1.Service
         }
 
         /// <summary>
-        /// 全量数据分析线程
+        /// 全量数据分析线程（逐条流式写入 CoreDataBus + 整批写入 DetectionChannel）
         /// </summary>
         private void Analysis()
         {
-            Voltage_block voltageBlock = new Voltage_block();
+            long globalSampleIndex = 0;
+
+            // 预计算每采样点 Stopwatch ticks 增量
+            // SampleRate 单位为 kHz，需转换为 Hz
+            double ticksPerSample_d = (double)Stopwatch.Frequency / (double)(Program.deviceconfig.SampleRate * 1000);
+            long ticksPerSample = (long)Math.Round(ticksPerSample_d);
+
+            Voltage_block voltageBlock = default;
+            StructuredSample[] detArr = null; // 从数组池租用的结构化数据数组，长度根据实际采样点数动态确定
             try
             {
                 while (ADDataTest_RunFlag)
                 {
-                    //_ = await Analysischannel.Reader.WaitToReadAsync();//当通道中没有数据，线程在此处等待挂起，避免cpu空转
-                    //if (!Analysischannel.Reader.TryRead(out voltageBlock))// 从通道中读取数据块
-                    //    continue;// 从通道中读取数据块,如果没读到，则跳出本次循环
-
+                    // 从分析通道中读取电压数据块，如果没有数据则等待挂起，避免CPU空转
                     try
                     {
-                        //当通道中没有数据，线程在此处等待挂起，避免cpu空转(同步阻塞)
                         voltageBlock = Analysischannel.Reader.ReadAsync(cts.Token)
                                               .AsTask()
                                               .GetAwaiter()
                                               .GetResult();
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) { break; }
+
+                    int count = (int)voltageBlock.SampleCount; // 实际采样点数，根据数据块信息计算得出
+                    long baseTick = voltageBlock.StartTick;
+                    
+                    // 从数组池租用结构化数据数组
+                    detArr = ArrayPool<StructuredSample>.Shared.Rent(count);
+
+                    // 逐采样点填充结构化数据——每个采样点拥有独立物理时间戳
+                    for (int i = 0; i < count; i++)
                     {
-                        break; // 正常退出
+                        detArr[i].Timestamp = globalSampleIndex++;
+                        detArr[i].Time      = baseTick + i * ticksPerSample;
+                        detArr[i].CH1       = voltageBlock.Voltage1?[i] ?? 0;
+                        detArr[i].CH2       = voltageBlock.Voltage2?[i] ?? 0;
+                        detArr[i].Vis       = 0.0;
+                        detArr[i].Cn2       = 0.0;
+                        detArr[i].Temp      = 0.0;
+                        detArr[i].Humi      = 0.0;
+                        detArr[i].Press     = 0.0;
+                        detArr[i].WindSpd   = 0.0;
+                        detArr[i].Rain      = 0.0;
+                        detArr[i].WindDir   = 0.0;
+
+                        // 路 1：逐条流式写入 CoreDataBus
+                        Program.coreBus.Write(ref detArr[i]);
                     }
 
-                    //while (ADDataTest_RunFlag)
-                    //{
-                    //    // 先Peek检查是否有数据
-                    //    if (Analysischannel.Reader.TryPeek(out var item))
-                    //    {
-                    //        Analysischannel.Reader.TryRead(out voltageBlock); // 检查有数据时，调用TryRead消费
-                    //        break; // 正常退出
-                    //    }
-                    //    else
-                    //    {
-                    //        Thread.Sleep(1); // 阻塞等待1ms，防止cpu空转
-                    //    }
-                    //}
+                    // 路 2：整批写入 DetectionChannel（携带实际 count，避免 Rent 尾部零值误判）
+                    if (!DetectionCh.Writer.TryWrite(new DetectionBatch { Samples = detArr, Count = count }))
+                        ArrayPool<StructuredSample>.Shared.Return(detArr);
+                    detArr = null; // 所有权已转移（或已归还），置空防止异常路径二次归还
 
-                    // 下面写 数据分析代码
-
-
-
-                    // 处理完数据后归还数组
+                    // 归还数组池
                     if (voltageBlock.Voltage1 != null)
                         ArrayPool<double>.Shared.Return(voltageBlock.Voltage1);
                     if (voltageBlock.Voltage2 != null)
@@ -756,19 +796,53 @@ namespace ConsoleApp1.Service
             }
             catch (Exception ex)
             {
-                // 仅设置退出标志，不调用 stop()
                 ADDataTest_RunFlag = false;
-                cts.Cancel();  // 触发所有等待操作取消
-                init();//系统初始化
+                cts.Cancel();
+                init();
                 GrpcClient.SendErrorMessage("分析数据线程出现异常: " + ex.Message);
-                // 处理完数据后归还数组
                 if (voltageBlock.Voltage1 != null)
                     ArrayPool<double>.Shared.Return(voltageBlock.Voltage1);
                 if (voltageBlock.Voltage2 != null)
                     ArrayPool<double>.Shared.Return(voltageBlock.Voltage2);
+                if (detArr != null)
+                    ArrayPool<StructuredSample>.Shared.Return(detArr);
+                    
             }
         }
 
+
+        /// <summary>
+        /// 数据检测线程（第 5 线程）
+        /// 从 DetectionChannel 接收整批 StructuredSample[]，轻量级阈值比较
+        /// </summary>
+        private void Detection()
+        {
+            while (ADDataTest_RunFlag)
+            {
+                DetectionBatch batch;
+                try
+                {
+                    batch = DetectionCh.Reader.ReadAsync(cts.Token)
+                                    .AsTask().GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException) { break; }
+
+                var samples = batch.Samples;
+                int count = batch.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    var s = samples[i];
+                    if (s.CH1 < 0.01 && s.CH1 > -0.01 && i > 100)
+                    {
+                        GrpcClient.SendErrorMessage(
+                            $"通道1信号遮挡 @序号{s.Timestamp}", "SIGNAL_OBSTRUCTION");
+                        break;
+                    }
+                }
+
+                ArrayPool<StructuredSample>.Shared.Return(samples);
+            }
+        }
 
         private static Stopwatch stopwatch;
         /// <summary>
@@ -979,8 +1053,17 @@ namespace ConsoleApp1.Service
                 Priority = ThreadPriority.Highest, // 关键：设置最高优先级
                 IsBackground = true, // 后台线程，不阻塞程序退出
             };
-            AllThread.Add(s4);                                                                                                  
+            AllThread.Add(s4);
             s4.Start();
+
+            s5 = new Thread(Detection)
+            {
+                Name = "数据检测线程",
+                Priority = ThreadPriority.AboveNormal, // 高于 UI/持久化(Normal)，低于采集(Highest)
+                IsBackground = true,
+            };
+            AllThread.Add(s5);
+            s5.Start();
         }
 
         /// <summary>
@@ -995,6 +1078,7 @@ namespace ConsoleApp1.Service
             channel.Writer.TryComplete();
             Analysischannel.Writer.TryComplete();
             UIchannel.Writer.TryComplete();
+            DetectionCh.Writer.TryComplete();
 
             //等待所有（生产者-消费者）线程执行完毕
             foreach(var thread in AllThread)
@@ -1042,11 +1126,17 @@ namespace ConsoleApp1.Service
                     ArrayPool<double>.Shared.Return(block.Voltage2);
                 }
             }
+            while (DetectionCh.Reader.TryRead(out var batch))
+            {
+                if (batch.Samples != null)
+                    ArrayPool<StructuredSample>.Shared.Return(batch.Samples);
+            }
 
             /// 清理旧通道的引用，方便GC回收
             channel = null;
             Analysischannel= null;
             UIchannel= null;
+            DetectionCh = null;
             cts = null;
 
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌

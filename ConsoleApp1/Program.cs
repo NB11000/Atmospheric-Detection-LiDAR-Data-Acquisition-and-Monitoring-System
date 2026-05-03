@@ -63,6 +63,11 @@ namespace ConsoleApp1
         public static UISharedBuffer uISharedBuffer { get; private set; }
 
         /// <summary>
+        /// 核心数据总线实例（全局单例）
+        /// </summary>
+        public static CoreDataBus coreBus { get; private set; }
+
+        /// <summary>
         /// 父进程监控取消令牌源
         /// </summary>
         private static CancellationTokenSource _parentMonitorCts;
@@ -124,6 +129,13 @@ namespace ConsoleApp1
                 uISharedBuffer = new UISharedBuffer();
                 uISharedBuffer.Open();
                 logger.LogInformation("连接主进程的[UI显示]专用共享内存缓冲区");
+
+
+                // 连接核心数据总线
+                coreBus = new CoreDataBus();
+                coreBus.Open();
+                logger.LogInformation("连接主进程的核心数据总线");
+
 
 
                 // 构建.NET配置提供程序
@@ -244,11 +256,9 @@ namespace ConsoleApp1
                 }
 
                 // 3. 释放共享内存资源
-                if (uISharedBuffer != null)
-                {
-                    uISharedBuffer.Dispose();
-                    logger.LogInformation("共享内存资源已释放");
-                }
+                uISharedBuffer?.Dispose();
+                coreBus?.Dispose();
+                logger.LogInformation("共享内存资源已释放");
                 
                 // 4. 停止gRPC客户端（如果仍在运行）
                 if (_grpcClient != null)

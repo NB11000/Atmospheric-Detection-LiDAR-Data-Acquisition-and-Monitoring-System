@@ -118,6 +118,8 @@ namespace WebAPI
             builder.Services.AddSignalR();
             // 注册配置文件读写管理器（实例化的配置文件读写辅助类）
             builder.Services.AddSingleton<UISharedBuffer>();
+            // 核心数据总线
+            builder.Services.AddSingleton<CoreDataBus>();
             // 初始化Grpc服务端通信模块
             // 注册GrpcServiceImpl实例（GrpcService）为单例服务
             builder.Services.AddSingleton<GrpcServiceImpl>();
@@ -250,6 +252,13 @@ namespace WebAPI
                     var uISharedBuffer = app.Services.GetRequiredService<UISharedBuffer>();
                     // 初始化UI共享内存缓冲区，并创建UI共享内存，内存映射文件
                     uISharedBuffer.Create(1000);
+                    // 创建核心数据总线（扁平环形数组，10M 采样点 ≈ 915MB）
+                    var coreDataBus = app.Services.GetRequiredService<CoreDataBus>();
+                    coreDataBus.Create(
+                        channels: 2,
+                        buffer: 10_000_000,
+                        sampleRate: 1_000_000);
+                    Log.Information("核心数据总线已创建，缓冲区容量 10,000,000 采样点");
                     // 从DI容器中获取配置文件读写辅助类实例
                     var configHelper = app.Services.GetRequiredService<ConfigHelper>();
                     // 读取配置文件并更新全局配置实体

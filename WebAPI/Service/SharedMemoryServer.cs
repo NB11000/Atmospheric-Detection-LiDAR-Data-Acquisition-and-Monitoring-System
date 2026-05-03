@@ -1,10 +1,8 @@
-﻿using AvaloniaApplication1;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+using ConsoleApp1.Models;
 using System;
 using System.IO.MemoryMappedFiles;
-using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace WebAPISharedMemoryFramework
 {
@@ -144,7 +142,7 @@ namespace WebAPISharedMemoryFramework
                 Array.Clear(buffer2, 0, frameSize);
                 return;
             }
-
+ 
             long startIdx = writeIdx - frameSize;
             int bufferLength = header->BufferLength;
 
@@ -195,77 +193,45 @@ namespace WebAPISharedMemoryFramework
     }
 
     /// <summary>
-    /// 原始采样数据环形共享缓冲区
-    /// 作用：用于**子进程写入高频采样数据**、**主进程读取原始数据**
-    /// 核心特性：无锁设计、无GC垃圾回收、支持MHz级别高频率采样
+    /// 核心数据总线（扁平环形数组）
+    /// 作用：跨进程高速传输结构化采样数据
+    /// 生产者：Analysis 线程逐条流式写入
+    /// 消费者：持久化/低频UI 线程定时单条读取
     /// </summary>
-    public unsafe class RawRingBuffer : IDisposable
+    public unsafe class CoreDataBus : IDisposable
     {
-        /// <summary>
-        /// 共享内存唯一名称
-        /// 前缀 Global\\ 表示：系统全局共享，所有用户进程均可访问
-        /// </summary>
-        const string MapName = "DAQ_RAW_BUFFER";
+        const string MapName = "DAQ_CORE_DATA_BUS";
 
-        // 内存映射文件对象
         private MemoryMappedFile mmf;
-
-        // 共享内存视图访问器
         private MemoryMappedViewAccessor accessor;
-
-        // 共享内存起始基地址指针
         private byte* basePtr;
-        // 共享内存头结构指针（存储配置与状态）
-        private RawMemoryHeader* header;
-        // 采样数据区起始指针（存储 double 类型采样值）
-        private double* dataPtr;
-        // 采集通道总数
-        private int channelCount;
-        // 单个通道环形缓冲区最大容量（采样点数量）
+        private CoreBusHeader* header;
+        private StructuredSample* dataPtr;
         private int bufferLength;
 
         /// <summary>
         /// 【主进程调用】创建并初始化共享内存
-        /// 作用：分配物理内存、初始化头结构、建立指针映射
-        /// 子进程不可调用，只能连接已创建的内存
         /// </summary>
-        /// <param name="channel">通道数量</param>
-        /// <param name="buffer">单通道缓冲区长度</param>
-        /// <param name="sampleRate">采样率(Hz)</param>
-        public void Create(int channel, int buffer, int sampleRate)
+        public void Create(int channels, int buffer, int sampleRate)
         {
-            channelCount = channel;
             bufferLength = buffer;
 
-            // 计算头结构占用字节数
-            int headerSize = sizeof(RawMemoryHeader);
-
-            // 计算数据区总大小 = 通道数 × 单通道长度 × 单个double大小
-            long dataSize = (long)channel * buffer * sizeof(double);
-
-            // 共享内存总大小 = 头 + 数据区
+            int headerSize = sizeof(CoreBusHeader);
+            long dataSize = (long)buffer * sizeof(StructuredSample);
             long totalSize = headerSize + dataSize;
 
-            // 创建/打开全局共享内存
             mmf = MemoryMappedFile.CreateNew(
                 MapName,
                 totalSize,
                 MemoryMappedFileAccess.ReadWrite);
 
-            // 创建可读写的内存视图
             accessor = mmf.CreateViewAccessor();
-
-            // 获取共享内存原生指针（高性能访问必须）
             accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref basePtr);
 
-            // 头指针 = 基地址
-            header = (RawMemoryHeader*)basePtr;
+            header = (CoreBusHeader*)basePtr;
+            dataPtr = (StructuredSample*)(basePtr + headerSize);
 
-            // 数据指针 = 基地址 + 头结构偏移量
-            dataPtr = (double*)(basePtr + headerSize);
-
-            // 初始化共享内存头信息
-            header->ChannelCount = channel;
+            header->ChannelCount = channels;
             header->BufferLength = buffer;
             header->SampleRate = sampleRate;
             header->WriteIndex = 0;
@@ -273,82 +239,32 @@ namespace WebAPISharedMemoryFramework
 
         /// <summary>
         /// 【子进程调用】连接主进程创建好的共享内存
-        /// 作用：获取指针映射、读取配置参数，不创建新内存
         /// </summary>
         public void Open()
         {
-            // 打开已存在的全局共享内存
             mmf = MemoryMappedFile.OpenExisting(
                 MapName,
                 MemoryMappedFileRights.ReadWrite);
 
             accessor = mmf.CreateViewAccessor();
-
-            // 映射到进程地址空间
             accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref basePtr);
 
-            // 解析头结构与数据区
-            header = (RawMemoryHeader*)basePtr;
-            dataPtr = (double*)(basePtr + sizeof(RawMemoryHeader));
-
-            // 从共享内存读取配置（由主进程写入）
-            channelCount = header->ChannelCount;
+            header = (CoreBusHeader*)basePtr;
+            dataPtr = (StructuredSample*)(basePtr + sizeof(CoreBusHeader));
             bufferLength = header->BufferLength;
         }
 
         /// <summary>
-        /// 【子进程调用】向环形缓冲区写入采样数据
-        /// 无锁、高性能、直接指针写入
+        /// 【持久化/低频UI】读取写指针前最新 1 条数据
         /// </summary>
-        /// <param name="samples">待写入的采样数据数组</param>
-        public void Write(double[] samples)
+        public StructuredSample ReadLatestSingle()
         {
-            // 获取当前写指针位置
-            long index = header->WriteIndex;
-
-            // 循环写入所有采样点
-            for (int i = 0; i < samples.Length; i++)
-            {
-                // 环形计算：确保位置不越界，循环复用缓冲区
-                long pos = (index + i) % bufferLength;
-                // 直接指针赋值（无GC、极快）
-                dataPtr[pos] = samples[i];
-            }
-
-            // 更新写指针（主进程通过此值判断最新数据位置）
-            header->WriteIndex = (index + samples.Length) % bufferLength;
+            long index = Volatile.Read(ref header->WriteIndex);
+            if (index == 0) return default;
+            long pos = (index - 1) % bufferLength;
+            return dataPtr[pos];
         }
 
-        /// <summary>
-        /// 【主进程调用】读取缓冲区最新N条数据
-        /// 用于获取实时最新采样值
-        /// </summary>
-        /// <param name="buffer">接收数据的数组</param>
-        /// <param name="length">需要读取的数据长度</param>
-        public void ReadLatest(double[] buffer, int length)
-        {
-            // 从共享头获取最新写指针
-            long index = header->WriteIndex;
-
-            // 计算读取起始位置 = 最新位置往前推length个点
-            long start = index - length;
-
-            // 处理环形越界（负数则加上缓冲区长度）
-            if (start < 0)
-                start += bufferLength;
-
-            // 循环读取数据
-            for (int i = 0; i < length; i++)
-            {
-                long pos = (start + i) % bufferLength;
-                buffer[i] = dataPtr[pos];
-            }
-        }
-
-        /// <summary>
-        /// 释放共享内存资源
-        /// 关闭映射、释放指针、销毁对象
-        /// </summary>
         public void Dispose()
         {
             accessor?.Dispose();
@@ -381,35 +297,26 @@ namespace WebAPISharedMemoryFramework
     }
 
     /// <summary>
-    /// 原始数据共享内存头结构
-    /// 作用：描述共享缓冲区状态，主/子进程共享配置
-    /// 位于共享内存最前端，是数据区的“目录”
+    /// 原始数据共享内存头结构（保留向后兼容）
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct RawMemoryHeader
     {
-        /// <summary>
-        /// 环形缓冲区写指针（当前写入位置）
-        /// 子进程写入数据后更新
-        /// 主进程读取时以此定位最新数据
-        /// </summary>
         public long WriteIndex;
-
-        /// <summary>
-        /// 采集通道数量
-        /// 例：1=单通道、8=八通道
-        /// </summary>
         public int ChannelCount;
-
-        /// <summary>
-        /// 单个通道缓冲区容量（采样点个数）
-        /// </summary>
         public int BufferLength;
+        public int SampleRate;
+    }
 
-        /// <summary>
-        /// 采样率(Hz)
-        /// 例：1000000 = 1MHz
-        /// </summary>
+    /// <summary>
+    /// 核心数据总线头结构
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct CoreBusHeader
+    {
+        public long WriteIndex;    // 写指针（单调递增，取模 = 真实索引）
+        public int ChannelCount;
+        public int BufferLength;
         public int SampleRate;
     }
 
