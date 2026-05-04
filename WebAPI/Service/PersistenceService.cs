@@ -1,0 +1,125 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using ConsoleApp1.Helpers;
+using ConsoleApp1.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using WebAPI.Models;
+using WebAPISharedMemoryFramework;
+
+namespace WebAPI.Service
+{
+    public class PersistenceService : IAcquisitionBoundService, IDisposable
+    {
+        private static readonly string[] CsvHeader = { "Timestamp", "UTC", "CH1", "CH2", "Vis", "Cn2", "Temp", "Humi", "Press", "WindSpd", "Rain", "WindDir" };
+
+        public bool RequiresMqttConnection => false;
+
+        private const int IntervalSeconds = 30;
+
+        private readonly CoreDataBus _coreDataBus;
+        private readonly IOptionsMonitor<MqttSettings> _mqttSettings;
+        private readonly ILogger<PersistenceService> _logger;
+
+        private readonly object _lock = new();
+        private bool _isRunning;
+        private CancellationTokenSource? _cts;
+
+        public PersistenceService(
+            CoreDataBus coreDataBus,
+            IOptionsMonitor<MqttSettings> mqttSettings,
+            ILogger<PersistenceService> logger)
+        {
+            _coreDataBus = coreDataBus;
+            _mqttSettings = mqttSettings;
+            _logger = logger;
+        }
+
+        public void Start()
+        {
+            lock (_lock)
+            {
+                if (_isRunning) return;
+                _isRunning = true;
+            }
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            _ = RunLoopAsync(_cts.Token);
+
+            _logger.LogInformation("持久化服务已启动，周期={Interval}s", IntervalSeconds);
+        }
+
+        public void Stop()
+        {
+            CancellationTokenSource? ctsToCancel = null;
+
+            lock (_lock)
+            {
+                if (!_isRunning) return;
+                _isRunning = false;
+                ctsToCancel = _cts;
+            }
+
+            try { ctsToCancel?.Cancel(); }
+            catch (ObjectDisposedException) { }
+
+            _logger.LogInformation("持久化服务已停止");
+        }
+
+        private async Task RunLoopAsync(CancellationToken ct)
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(IntervalSeconds));
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                try
+                {
+                    if (!_coreDataBus.TryReadLatestSingle(out var sample))
+                        continue;
+
+                    var utc = TimeHelper.ToUtcDateTime(
+                        sample.Time,
+                        _coreDataBus.ReferenceTick,
+                        _coreDataBus.ReferenceUtcTicks,
+                        Stopwatch.Frequency);
+
+                    var now = DateTime.Now;
+                    var fileName = $"{now:yyyy-MM-dd}_{now:HH}.csv";
+                    var filePath = Path.Combine("data", fileName);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+                    bool writeHeader = !File.Exists(filePath);
+                    using var fs = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                    using var sw = new StreamWriter(fs);
+
+                    if (writeHeader)
+                        await sw.WriteLineAsync(string.Join(",", CsvHeader));
+
+                    var line = string.Join(",",
+                        sample.Timestamp,
+                        utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),
+                        sample.CH1, sample.CH2, sample.Vis, sample.Cn2,
+                        sample.Temp, sample.Humi, sample.Press,
+                        sample.WindSpd, sample.Rain, sample.WindDir);
+
+                    await sw.WriteLineAsync(line);
+                    await sw.FlushAsync();
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    _logger.LogWarning(ex, "持久化写入失败，下次周期重试");
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            _cts?.Dispose();
+        }
+    }
+}

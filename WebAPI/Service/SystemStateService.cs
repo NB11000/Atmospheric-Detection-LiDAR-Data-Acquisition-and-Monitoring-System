@@ -26,6 +26,14 @@ namespace WebAPI.Service
         public event Action<bool>? AcquiringStateChanged;
 
         /// <summary>
+        /// MQTT 连接状态变更事件（true=已连接，false=已断开）
+        /// AcquisitionLifecycleCoordinator 订阅此事件以结合采集状态决定消费者启停
+        /// </summary>
+        public event Action<bool>? MqttConnectionStateChanged;
+
+        private volatile bool _mqttConnected;
+
+        /// <summary>
         /// 采集卡状态本地缓存（通过命令响应和主动上报推断更新，避免每次快照都发起 IPC）
         /// 使用 volatile 保证多线程可见性，更新时采用整体替换（不可变对象模式）
         /// </summary>
@@ -57,6 +65,19 @@ namespace WebAPI.Service
             ILogger<SystemStateService> logger)
         {
             _logger = logger;
+        }
+
+        /// <summary>
+        /// 更新 MQTT 连接状态（由 MqttRpcBackgroundService 在断连/重连时调用）
+        /// 仅在值变化时触发 MqttConnectionStateChanged 事件
+        /// </summary>
+        public void UpdateMqttConnectionState(bool isConnected)
+        {
+            if (_mqttConnected == isConnected)
+                return;
+            _mqttConnected = isConnected;
+            MqttConnectionStateChanged?.Invoke(isConnected);
+            _logger.LogInformation("MQTT 连接状态已更新: {State}", isConnected ? "已连接" : "已断开");
         }
 
         /// <summary>

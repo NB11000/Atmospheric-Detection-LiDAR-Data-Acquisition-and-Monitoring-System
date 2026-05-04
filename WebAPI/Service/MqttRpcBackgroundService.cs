@@ -28,7 +28,7 @@ namespace WebAPI.Service
         private readonly IServiceProvider _serviceProvider;
         private readonly IOptionsMonitor<MqttSettings> _mqttSettings;
         private readonly MqttEventPublisher _eventPublisher;
-        private readonly WaveformPublishService _waveformPublishService;
+        private readonly SystemStateService _systemStateService;
         private readonly ILogger<MqttRpcBackgroundService> _logger;
 
         // ── RPC 方法路由（启动时构建一次） ──────────────────────
@@ -64,13 +64,13 @@ namespace WebAPI.Service
             IServiceProvider serviceProvider,
             IOptionsMonitor<MqttSettings> mqttSettings,
             MqttEventPublisher eventPublisher,
-            WaveformPublishService waveformPublishService,
+            SystemStateService systemStateService,
             ILogger<MqttRpcBackgroundService> logger)
         {
             _serviceProvider = serviceProvider;
             _mqttSettings = mqttSettings;
             _eventPublisher = eventPublisher;
-            _waveformPublishService = waveformPublishService;
+            _systemStateService = systemStateService;
             _logger = logger;
 
             var settings = _mqttSettings.CurrentValue;
@@ -200,11 +200,8 @@ namespace WebAPI.Service
                 ct);
             _logger.LogInformation("已订阅 RPC 主题: {Topic}", _rpcSubscribePattern);
 
-            // 若当前采集状态为 Acquiring=true，通知 WaveformPublishService 恢复波形发布
-            if (_serviceProvider.GetRequiredService<SystemStateService>().GetCollectorState().Acquiring)
-            {
-                _waveformPublishService.Start();
-            }
+            // 重连成功后更新 MQTT 状态，Coordinator 据此恢复需 MQTT 的服务
+            _systemStateService.UpdateMqttConnectionState(true);
 
             _logger.LogInformation("RPC 服务端就绪，已注册 {Count} 个方法", _rpcHandlers.Count);
         }
@@ -331,7 +328,7 @@ namespace WebAPI.Service
             _logger.LogWarning("MQTT 断开 Reason={Reason} WasConnected={WasConnected}",
                 args.Reason, args.ClientWasConnected);
 
-            _waveformPublishService.Stop();
+            _systemStateService.UpdateMqttConnectionState(false);
 
             if (!_shouldReconnect)
             {
@@ -393,6 +390,7 @@ namespace WebAPI.Service
             _logger.LogInformation("BackgroundService 正在停止…");
 
             _shouldReconnect = false;
+            _systemStateService.UpdateMqttConnectionState(false);
 
             // 等待正在进行的重连完成
             await _reconnectLock.WaitAsync(ct);

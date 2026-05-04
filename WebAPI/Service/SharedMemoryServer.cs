@@ -263,6 +263,13 @@ namespace WebAPISharedMemoryFramework
         /// 【持久化/低频UI】尝试读取写指针前最新 1 条数据
         /// </summary>
         /// <returns>true 表示总线已有数据，false 表示尚无数据写入</returns>
+        public long WriteIndex => Volatile.Read(ref header->WriteIndex);
+        public int ChannelCount => header->ChannelCount;
+        public int BufferLength => header->BufferLength;
+        public int SampleRate => header->SampleRate;
+        public long ReferenceTick => header->ReferenceTick;
+        public long ReferenceUtcTicks => header->ReferenceUtcTicks;
+
         public bool TryReadLatestSingle(out StructuredSample sample)
         {
             long index = Volatile.Read(ref header->WriteIndex);
