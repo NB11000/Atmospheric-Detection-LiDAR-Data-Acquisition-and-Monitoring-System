@@ -1,6 +1,6 @@
 # 低频 UI MQTT 发布线程
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: #1, #2, `IAcquisitionBoundService`, `AcquisitionLifecycleCoordinator`
 
 ## What to build

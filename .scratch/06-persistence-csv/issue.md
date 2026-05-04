@@ -1,6 +1,6 @@
 # 持久化线程：CoreDataBus → CSV
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: #1, #2, `IAcquisitionBoundService`, `AcquisitionLifecycleCoordinator`
 
 ## What to build

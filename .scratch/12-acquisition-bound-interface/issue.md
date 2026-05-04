@@ -1,6 +1,6 @@
 # IAcquisitionBoundService 接口定义
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: —
 
 ## What to build

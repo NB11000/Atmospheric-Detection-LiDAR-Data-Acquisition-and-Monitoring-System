@@ -1,6 +1,6 @@
 # SystemStateService 新增 MqttConnectionStateChanged 事件
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: —
 
 ## What to build

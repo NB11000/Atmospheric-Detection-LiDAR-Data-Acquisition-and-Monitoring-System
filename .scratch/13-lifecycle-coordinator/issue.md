@@ -1,6 +1,6 @@
 # AcquisitionLifecycleCoordinator 实现
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: #12, #14
 
 ## What to build

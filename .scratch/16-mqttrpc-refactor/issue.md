@@ -1,6 +1,6 @@
 # MqttRpcBackgroundService 解耦 WaveformPublishService
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: #14
 
 ## What to build

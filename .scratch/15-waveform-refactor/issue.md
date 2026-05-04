@@ -1,6 +1,6 @@
 # WaveformPublishService 改造为 IAcquisitionBoundService
 
-- **Label**: ready-for-agent
+- **Label**: done
 - **Blocked by**: #12, #13
 
 ## What to build
