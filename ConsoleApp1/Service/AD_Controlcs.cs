@@ -659,7 +659,7 @@ namespace ConsoleApp1.Service
 
                     // 将处理后的电压数据块写入分析通道
                     if (!Analysischannel.Writer.TryWrite(new Voltage_block
-                    { Voltage1 = result1, Voltage2 = result2, SampleCount = block.nBytes * a, StartTick = startTick }))
+                    { Voltage1 = result1, Voltage2 = result2, SampleCount = (int)(block.nBytes * a), StartTick = startTick }))
                     {
                         // 如果写入失败，归还数组，防止泄漏
                         if (Result1)
@@ -756,7 +756,7 @@ namespace ConsoleApp1.Service
                     }
                     catch (OperationCanceledException) { break; }
 
-                    int count = (int)voltageBlock.SampleCount; // 实际采样点数，根据数据块信息计算得出
+                    int count = voltageBlock.SampleCount; // 实际采样点数，根据数据块信息计算得出
                     long baseTick = voltageBlock.StartTick;
                     
                     // 从数组池租用结构化数据数组

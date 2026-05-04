@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
@@ -284,6 +285,10 @@ namespace SharedMemoryFramework
             header->BufferLength = buffer;
             header->SampleRate = sampleRate;
             header->WriteIndex = 0;
+
+            // 一次性捕获时间校准基准，消除跨进程/跨平台时钟歧义
+            header->ReferenceTick = Stopwatch.GetTimestamp();
+            header->ReferenceUtcTicks = DateTime.UtcNow.Ticks;
         }
 
         /// <summary>
@@ -319,14 +324,20 @@ namespace SharedMemoryFramework
         }
 
         /// <summary>
-        /// 【持久化/低频UI】读取写指针前最新 1 条数据
+        /// 【持久化/低频UI】尝试读取写指针前最新 1 条数据
         /// </summary>
-        public StructuredSample ReadLatestSingle()
+        /// <returns>true 表示总线已有数据，false 表示尚无数据写入</returns>
+        public bool TryReadLatestSingle(out StructuredSample sample)
         {
             long index = Volatile.Read(ref header->WriteIndex);
-            if (index == 0) return default;
+            if (index == 0)
+            {
+                sample = default;
+                return false;
+            }
             long pos = (index - 1) % bufferLength;
-            return *(dataPtr + pos);
+            sample = *(dataPtr + pos);
+            return true;
         }
 
         public void Dispose()
@@ -384,6 +395,10 @@ namespace SharedMemoryFramework
         public int ChannelCount;   // 通道数
         public int BufferLength;   // 环形缓冲区容量（采样点数）
         public int SampleRate;     // 采样率 (Hz)
+
+        // 时间校准基准——Create() 时刻一次性捕获，消除跨进程/跨平台时钟歧义
+        public long ReferenceTick;       // Create() 时刻 Stopwatch.GetTimestamp()
+        public long ReferenceUtcTicks;   // Create() 时刻 DateTime.UtcNow.Ticks（100ns 单位）
     }
 }
 

@@ -17,7 +17,7 @@ namespace AvaloniaApplication1.Models
         
         // 如果同步双通道采样，则每个通道采样点=nBytes/4（每个采样点2字节）
         // 如果单通道采样，则每个通道采样点=nBytes/2（每个采样点2字节）
-        public double SampleCount;   // 每个通道的采样点数量
+        public int SampleCount;   // 每个通道的采样点数量
         public long StartTick;       // 起始时间戳（高精度）
     }
 }
