@@ -235,7 +235,7 @@ namespace SharedMemoryFramework
     /// </summary>
     public unsafe class CoreDataBus : IDisposable
     {
-        const string MapName = "DAQ_CORE_DATA_BUS";
+        private readonly string _mapName;
 
         private MemoryMappedFile mmf;
         private MemoryMappedViewAccessor accessor;
@@ -246,7 +246,7 @@ namespace SharedMemoryFramework
         /// <summary>
         /// 指向内存头结构
         /// </summary>
-        private CoreBusHeader* header; 
+        private CoreBusHeader* header;
         /// <summary>
         /// 指向数据区的指针（紧跟头结构之后）
         /// </summary>
@@ -255,6 +255,18 @@ namespace SharedMemoryFramework
         /// 环形缓冲区容量（采样点数）
         /// </summary>
         private int bufferLength;
+
+        public long WriteIndex => header->WriteIndex;
+        public int ChannelCount => header->ChannelCount;
+        public int BufferLength => bufferLength;
+        public int SampleRate => header->SampleRate;
+        public long ReferenceTick => header->ReferenceTick;
+        public long ReferenceUtcTicks => header->ReferenceUtcTicks;
+
+        public CoreDataBus(string mapName = "DAQ_CORE_DATA_BUS")
+        {
+            _mapName = mapName;
+        }
 
         /// <summary>
         /// 【主进程调用】创建并初始化共享内存
@@ -271,7 +283,7 @@ namespace SharedMemoryFramework
             long totalSize = headerSize + dataSize;  // 总内存大小
 
             mmf = MemoryMappedFile.CreateNew(
-                MapName,
+                _mapName,
                 totalSize,
                 MemoryMappedFileAccess.ReadWrite);
 
@@ -297,7 +309,7 @@ namespace SharedMemoryFramework
         public void Open()
         {
             mmf = MemoryMappedFile.OpenExisting(
-                MapName,
+                _mapName,
                 MemoryMappedFileRights.ReadWrite);
 
             accessor = mmf.CreateViewAccessor();
