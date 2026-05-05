@@ -1,6 +1,7 @@
 # IAcquisitionBoundService 接口定义
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: —
 
 ## What to build

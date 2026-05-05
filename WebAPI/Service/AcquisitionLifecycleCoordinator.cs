@@ -23,13 +23,21 @@ namespace WebAPI.Service
             systemStateService.MqttConnectionStateChanged += OnMqttConnectionStateChanged;
         }
 
+        /// <summary>
+        /// 根据采集状态和 MQTT 连接状态，协调启动/停止绑定服务
+        /// </summary>
+        /// <param name="isAcquiring"></param>
         private void OnAcquiringStateChanged(bool isAcquiring)
         {
             _acquiring = isAcquiring;
             _logger.LogInformation("采集状态变更: {State}", isAcquiring ? "采集中" : "已停止");
             Apply();
         }
-
+        
+        /// <summary>
+        /// 根据采集状态和 MQTT 连接状态，协调启动/停止绑定服务
+        /// </summary>
+        /// <param name="isConnected"></param>
         private void OnMqttConnectionStateChanged(bool isConnected)
         {
             _mqttConnected = isConnected;
@@ -37,6 +45,9 @@ namespace WebAPI.Service
             Apply();
         }
 
+        /// <summary>
+        /// 根据当前采集状态和 MQTT 连接状态，决定启动或停止每个绑定服务
+        /// </summary>
         private void Apply()
         {
             foreach (var service in _services)

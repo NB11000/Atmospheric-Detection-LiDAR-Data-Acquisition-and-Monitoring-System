@@ -1,6 +1,7 @@
 # AcquisitionLifecycleCoordinator 实现
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #12, #14
 
 ## What to build

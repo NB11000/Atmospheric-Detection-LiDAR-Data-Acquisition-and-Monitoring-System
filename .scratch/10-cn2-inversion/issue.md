@@ -1,6 +1,7 @@
 # Cn² 反演接入 Analysis
 
-- **Label**: ready-for-human
+- **Category**: enhancement
+- **State**: ready-for-human
 - **Blocked by**: #3, #9
 
 ## What to build

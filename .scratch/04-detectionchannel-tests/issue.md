@@ -1,6 +1,7 @@
 # DetectionChannel 数组所有权 + 线程生命周期测试
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #2
 
 ## What to build

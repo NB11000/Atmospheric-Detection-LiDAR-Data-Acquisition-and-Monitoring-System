@@ -1,6 +1,7 @@
 # Vis 反演接入 Analysis
 
-- **Label**: ready-for-human
+- **Category**: enhancement
+- **State**: ready-for-human
 - **Blocked by**: #3
 
 ## What to build

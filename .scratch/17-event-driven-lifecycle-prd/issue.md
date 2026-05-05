@@ -1,6 +1,7 @@
 # 消费者生命周期事件驱动化
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 
 ## Problem Statement
 

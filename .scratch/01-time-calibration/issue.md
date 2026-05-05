@@ -1,6 +1,7 @@
 # TimeCalibration：tick → UTC DateTime 转换工具 + 测试
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: None
 
 ## What to build

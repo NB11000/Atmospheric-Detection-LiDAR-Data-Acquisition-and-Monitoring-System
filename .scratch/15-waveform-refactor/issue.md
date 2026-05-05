@@ -1,6 +1,7 @@
 # WaveformPublishService 改造为 IAcquisitionBoundService
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #12, #13
 
 ## What to build

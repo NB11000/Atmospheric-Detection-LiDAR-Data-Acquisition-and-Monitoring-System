@@ -1,6 +1,7 @@
 # 跨进程 MMF 端到端集成测试
 
-- **Label**: ready-for-human
+- **Category**: enhancement
+- **State**: ready-for-human
 - **Blocked by**: #2
 
 ## What to build

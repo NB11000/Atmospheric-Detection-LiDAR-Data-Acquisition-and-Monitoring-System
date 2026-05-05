@@ -1,6 +1,7 @@
 # 持久化线程：CoreDataBus → CSV
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #1, #2, `IAcquisitionBoundService`, `AcquisitionLifecycleCoordinator`
 
 ## What to build

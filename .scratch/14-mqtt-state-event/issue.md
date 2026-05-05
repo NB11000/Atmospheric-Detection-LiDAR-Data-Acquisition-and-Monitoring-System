@@ -1,6 +1,7 @@
 # SystemStateService 新增 MqttConnectionStateChanged 事件
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: —
 
 ## What to build

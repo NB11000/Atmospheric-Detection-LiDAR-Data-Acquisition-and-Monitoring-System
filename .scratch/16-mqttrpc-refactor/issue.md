@@ -1,6 +1,7 @@
 # MqttRpcBackgroundService 解耦 WaveformPublishService
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #14
 
 ## What to build

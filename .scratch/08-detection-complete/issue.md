@@ -1,6 +1,7 @@
 # 检测线程完整逻辑
 
-- **Label**: ready-for-human
+- **Category**: enhancement
+- **State**: ready-for-human
 - **Blocked by**: #4
 
 ## What to build

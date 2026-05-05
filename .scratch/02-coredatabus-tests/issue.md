@@ -1,6 +1,7 @@
 # CoreDataBus 总线行为测试组件
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #1
 
 ## What to build

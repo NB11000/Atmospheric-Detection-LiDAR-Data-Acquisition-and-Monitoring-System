@@ -1,6 +1,7 @@
 # Analysis 结构化填充 + 时间戳测试
 
-- **Label**: done
+- **Category**: enhancement
+- **State**: done
 - **Blocked by**: #2
 
 ## What to build

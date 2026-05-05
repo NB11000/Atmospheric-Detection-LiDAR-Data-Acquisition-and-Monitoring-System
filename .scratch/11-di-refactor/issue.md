@@ -1,6 +1,7 @@
 # `Program.coreBus` static → DI 重构
 
-- **Label**: ready-for-human
+- **Category**: enhancement
+- **State**: ready-for-human
 - **Blocked by**: #2
 
 ## What to build
