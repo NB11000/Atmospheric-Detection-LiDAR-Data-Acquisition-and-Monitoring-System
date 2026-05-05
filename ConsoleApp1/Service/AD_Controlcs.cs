@@ -30,6 +30,12 @@ namespace ConsoleApp1.Service
     /// </summary>
     public class AD_Controlcs
     {
+        // DI 注入的依赖
+        private readonly CoreDataBus _coreBus;
+        private readonly UISharedBuffer _uISharedBuffer;
+        private readonly CaptureCardConfig _deviceConfig;
+        private readonly ILogger _logger;
+
         public IntPtr mHandle;// 句柄
         private bool InitFlag = false;// 初始化Flag,避免反复添加Combox项
         public volatile bool ADDataTest_RunFlag = false;// AD线程运行标志位 //变量可见性
@@ -88,6 +94,16 @@ namespace ConsoleApp1.Service
         /// </summary>
         public string LastStatusMessage { get; set; } = "采集卡未打开";
 
+        public AD_Controlcs(CoreDataBus coreBus, UISharedBuffer uISharedBuffer, CaptureCardConfig deviceConfig, ILogger logger)
+        {
+            _coreBus = coreBus;
+            _uISharedBuffer = uISharedBuffer;
+            _deviceConfig = deviceConfig;
+            _logger = logger;
+            cts = new CancellationTokenSource();
+            CreateNewDataChannel();
+        }
+
         public AD_Controlcs()
         {
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌
@@ -106,7 +122,7 @@ namespace ConsoleApp1.Service
         /// <returns>设备状态</returns>
         public string Device_Opened()
         {
-            mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
+            mHandle = USB1602.USB1602_OpenDevice(_deviceConfig.DeviceId);
             if (mHandle < 0)
             {
                 LastStatusMessage = "未检测到采集卡";
@@ -126,7 +142,7 @@ namespace ConsoleApp1.Service
         public string Device_Opened_again()
         {
             //打开设备
-            mHandle = USB1602.USB1602_OpenDevice(Program.deviceconfig.DeviceId);
+            mHandle = USB1602.USB1602_OpenDevice(_deviceConfig.DeviceId);
             if (mHandle < 0)
             {
                 LastStatusMessage = "仍未检测到采集卡，请检查USB接口和是否安装采集卡驱动程序";
@@ -401,7 +417,7 @@ namespace ConsoleApp1.Service
                     iResult = USB1602.USB1602_GetFIFOInfo(mHandle, ref u8Status);
 
                     //显示FIFO状态
-                    //Program.logger.LogInformation("FIFO状态:" + u8Status);
+                    //_logger.LogInformation("FIFO状态:" + u8Status);
 
                     //buffer内存没有固定，可能会被GC移动，导致 C API 调用失败
                     //所以在此处没有固定buffer数组
@@ -455,7 +471,7 @@ namespace ConsoleApp1.Service
                                  $"异常消息: {ex.Message}\n" +
                                  $"堆栈跟踪:\n{ex.StackTrace}\n" +
                                  $"来源: {ex.Source}";
-                Program.logger.LogError(errorMsg);
+                _logger.LogError(errorMsg);
 
                 // 向 WebAPI 上报错误，携带具体错误码
                 if (ex.Message.Contains("USB") || ex.Message.Contains("设备") || ex.Message.Contains("断开"))
@@ -716,7 +732,7 @@ namespace ConsoleApp1.Service
                                  $"堆栈跟踪:\n{ex.StackTrace}\n" +
                                  $"来源: {ex.Source}";
                 // 输出到调试窗口
-                Program.logger.LogError(errorMsg);
+                _logger.LogError(errorMsg);
                 // 仅设置退出标志，不调用 stop()
                 ADDataTest_RunFlag = false;
                 cts.Cancel();  // 触发所有等待操作取消
@@ -737,7 +753,7 @@ namespace ConsoleApp1.Service
 
             // 预计算每采样点 Stopwatch ticks 增量
             // SampleRate 单位为 kHz，需转换为 Hz
-            double ticksPerSample_d = (double)Stopwatch.Frequency / (double)(Program.deviceconfig.SampleRate * 1000);
+            double ticksPerSample_d = (double)Stopwatch.Frequency / (double)(_deviceConfig.SampleRate * 1000);
             long ticksPerSample = (long)Math.Round(ticksPerSample_d);
 
             Voltage_block voltageBlock = default;
@@ -779,7 +795,7 @@ namespace ConsoleApp1.Service
                         detArr[i].WindDir   = 0.0;
 
                         // 路 1：逐条流式写入 CoreDataBus
-                        Program.coreBus.Write(ref detArr[i]);
+                        _coreBus.Write(ref detArr[i]);
                     }
 
                     // 路 2：整批写入 DetectionChannel（携带实际 count，避免 Rent 尾部零值误判）
@@ -924,7 +940,7 @@ namespace ConsoleApp1.Service
 
 
                     // 将UI降采样数据写入共享内存
-                    Program.uISharedBuffer.WriteSampleBatch(text1, text2, 1000);
+                    _uISharedBuffer.WriteSampleBatch(text1, text2, 1000);
 
                     // 处理完数据后归还数组
                     if (ch1)
@@ -974,16 +990,16 @@ namespace ConsoleApp1.Service
             //    fs = new FileStream(subPath + "\\" + FileName + ".dat", FileMode.Create);
             //}
 
-            chSel = (byte)(Program.deviceconfig.SyncChannelIndex + 1);
-            Gain = (byte)Program.deviceconfig.RangeIndex;
-            freq = (float)Program.deviceconfig.SampleRate;
+            chSel = (byte)(_deviceConfig.SyncChannelIndex + 1);
+            Gain = (byte)_deviceConfig.RangeIndex;
+            freq = (float)_deviceConfig.SampleRate;
             freDiv = (UInt16)Math.Round(40000.0 / freq);
             if (freDiv < 40)
                 freDiv = 40;
             if (freDiv > 65535)
                 freDiv = 65535;
-            clock = (byte)Program.deviceconfig.ClockSourceIndex;
-            trigMode = (byte)Program.deviceconfig.TriggerSourceIndex;
+            clock = (byte)_deviceConfig.ClockSourceIndex;
+            trigMode = (byte)_deviceConfig.TriggerSourceIndex;
 
             //清fifo
             iResult = USB1602.USB1602_CLRRAM(mHandle);

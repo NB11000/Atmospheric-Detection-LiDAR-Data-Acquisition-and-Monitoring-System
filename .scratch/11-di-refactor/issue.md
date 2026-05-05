@@ -1,7 +1,7 @@
 # `Program.coreBus` static → DI 重构
 
 - **Category**: enhancement
-- **State**: ready-for-human
+- **State**: done
 - **Blocked by**: #2
 
 ## What to build
@@ -15,8 +15,8 @@ ConsoleApp1 引入 `Microsoft.Extensions.DependencyInjection`，将 `CoreDataBus
 
 ## Acceptance criteria
 
-- [ ] Analysis 通过 DI 获取 CoreDataBus，不引用 `Program.coreBus`
-- [ ] 现有功能（采集、分析、检测、UI）不退化
-- [ ] 子进程启动时 DI 初始化在 gRPC 连接之前完成（时序不变）
+- [x] Analysis 通过 DI 获取 CoreDataBus，不引用 `Program.coreBus`
+- [x] 现有功能（采集、分析、检测、UI）不退化
+- [x] 子进程启动时 DI 初始化在 gRPC 连接之前完成（时序不变）
 
 

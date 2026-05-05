@@ -31,7 +31,7 @@ namespace ConsoleApp1
         /// <summary>
         /// 数据采集控制类实例，负责设备控制与采集逻辑
         /// </summary>
-        private static AD_Controlcs aD_Controlcs = new AD_Controlcs();
+        private static AD_Controlcs aD_Controlcs;
 
         /// <summary>
         /// 公开的静态【配置实体属性】，主窗口可以直接获取
@@ -44,14 +44,14 @@ namespace ConsoleApp1
         public static ILogger logger {  get; set; }
 
         /// <summary>
-        /// 注册DI容器 (依赖注入容器)
+        /// DI服务提供程序
         /// </summary>
-        public static IServiceCollection services = new ServiceCollection();
+        private static IServiceProvider _serviceProvider;
 
         /// <summary>
         /// 服务端IP
         /// </summary>
-        public static string GrpcAddress { get; private set; } 
+        public static string GrpcAddress { get; private set; }
         /// <summary>
         /// 配置文件路径
         /// </summary>
@@ -63,9 +63,9 @@ namespace ConsoleApp1
         public static UISharedBuffer uISharedBuffer { get; private set; }
 
         /// <summary>
-        /// 核心数据总线实例（全局单例）
+        /// 核心数据总线实例（用于释放资源，通过DI获取）
         /// </summary>
-        public static CoreDataBus coreBus { get; private set; }
+        private static CoreDataBus coreBus;
 
         /// <summary>
         /// 父进程监控取消令牌源
@@ -146,6 +146,19 @@ namespace ConsoleApp1
 
                 //从JSON文件读取设备配置到实体类
                 ConfigHelper.ReadDeviceConfig();
+
+                // ==============================================
+                // 构建 DI 容器（依赖注入）
+                // ==============================================
+                var services = new ServiceCollection();
+                services.AddSingleton<ILogger>(logger);
+                services.AddSingleton(deviceconfig);
+                services.AddSingleton(uISharedBuffer);
+                services.AddSingleton(coreBus);
+                services.AddSingleton<AD_Controlcs>();
+                _serviceProvider = services.BuildServiceProvider();
+                aD_Controlcs = _serviceProvider.GetRequiredService<AD_Controlcs>();
+                logger.LogInformation("DI容器初始化完成，CoreDataBus 已注入");
 
                 // 启动父进程监控（如果传入了父进程ID）
                 if (parentProcessId > 0)

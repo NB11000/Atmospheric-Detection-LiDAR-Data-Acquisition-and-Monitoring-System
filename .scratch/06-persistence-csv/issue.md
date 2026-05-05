@@ -17,12 +17,12 @@
 
 ## Acceptance criteria
 
-- [ ] 实现 `IAcquisitionBoundService`，`RequiresMqttConnection = false`
-- [ ] `Program.cs` 注册为 `AddSingleton<PersistenceService>()` + `AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<PersistenceService>())`
-- [ ] 采集开始后自动启动循环，采集停止后自动停止
-- [ ] `Start()` / `Stop()` 线程安全幂等
-- [ ] 按配置周期（可配置）写入 CSV
-- [ ] UTC 时间列正确（通过 TimeHelper 还原）
-- [ ] 每小时自动切换新文件
-- [ ] 异常（磁盘满等）不导致进程崩溃
-- [ ] 优雅退出时刷盘最后一批
+- [x] 实现 `IAcquisitionBoundService`，`RequiresMqttConnection = false`
+- [x] `Program.cs` 注册为 `AddSingleton<PersistenceService>()` + `AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<PersistenceService>())`
+- [x] 采集开始后自动启动循环，采集停止后自动停止
+- [x] `Start()` / `Stop()` 线程安全幂等
+- [x] 按配置周期（可配置）写入 CSV
+- [x] UTC 时间列正确（通过 TimeHelper 还原）
+- [x] 每小时自动切换新文件
+- [x] 异常（磁盘满等）不导致进程崩溃
+- [x] 优雅退出时刷盘最后一批

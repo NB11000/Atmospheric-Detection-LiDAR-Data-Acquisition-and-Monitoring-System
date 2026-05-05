@@ -12,6 +12,9 @@ using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service
 {
+    /// <summary>
+    /// 低频发布服务（采集绑定）
+    /// </summary>
     public class LowFrequencyPublisher : IAcquisitionBoundService, IDisposable
     {
         private static readonly JsonSerializerOptions JsonOptions = new()

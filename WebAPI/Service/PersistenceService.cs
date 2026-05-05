@@ -12,6 +12,9 @@ using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service
 {
+    /// <summary>
+    /// 持久化服务（采集绑定）
+    /// </summary>
     public class PersistenceService : IAcquisitionBoundService, IDisposable
     {
         private static readonly string[] CsvHeader = { "Timestamp", "UTC", "CH1", "CH2", "Vis", "Cn2", "Temp", "Humi", "Press", "WindSpd", "Rain", "WindDir" };
@@ -71,6 +74,11 @@ namespace WebAPI.Service
             _logger.LogInformation("持久化服务已停止");
         }
 
+        /// <summary>
+        /// 周期性从 CoreDataBus 读取最新数据样本，并追加写入当天的 CSV 文件
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         private async Task RunLoopAsync(CancellationToken ct)
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(IntervalSeconds));
@@ -96,10 +104,10 @@ namespace WebAPI.Service
                     bool writeHeader = !File.Exists(filePath);
                     using var fs = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
                     using var sw = new StreamWriter(fs);
-
+                    // 如果是新文件，先写入表头
                     if (writeHeader)
                         await sw.WriteLineAsync(string.Join(",", CsvHeader));
-
+                    // 追加写入数据行
                     var line = string.Join(",",
                         sample.Timestamp,
                         utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),

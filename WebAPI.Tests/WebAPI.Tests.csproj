@@ -23,4 +23,14 @@
     <ProjectReference Include="..\WebAPI\WebAPI.csproj" />
   </ItemGroup>
 
+  <Target Name="CopyMMFWriter" AfterTargets="Build">
+    <MSBuild Projects="..\MMFWriter\MMFWriter.csproj" Targets="Build" />
+    <ItemGroup>
+      <MMFWriterOutput Include="..\MMFWriter\bin\$(Configuration)\net8.0\MMFWriter.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MMFWriterOutput)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

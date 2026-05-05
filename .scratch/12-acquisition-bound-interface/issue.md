@@ -22,5 +22,5 @@ public interface IAcquisitionBoundService
 
 ## Acceptance criteria
 
-- [ ] 接口编译通过，位于 `WebAPI/Service/` 命名空间
-- [ ] 不影响现有编译
+- [x] 接口编译通过，位于 `WebAPI/Service/` 命名空间
+- [x] 不影响现有编译

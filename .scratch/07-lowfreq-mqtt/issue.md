@@ -19,12 +19,12 @@
 
 ## Acceptance criteria
 
-- [ ] 实现 `IAcquisitionBoundService`，`RequiresMqttConnection = true`
-- [ ] `Program.cs` 注册为 `AddSingleton<LowFrequencyPublisher>()` + `AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<LowFrequencyPublisher>())`
-- [ ] 采集开始 + MQTT 已连接时自动启动，任一条件不满足时自动停止
-- [ ] `Start()` / `Stop()` 线程安全幂等
-- [ ] 每 7s 发布一条（无数据时跳过）
-- [ ] Topic 格式：`daq/{MachineId}/lowfreq`
-- [ ] QoS 1，Retain=否
-- [ ] Payload 含还原后的 UTC 时间
-- [ ] 不阻塞其他后台服务
+- [x] 实现 `IAcquisitionBoundService`，`RequiresMqttConnection = true`
+- [x] `Program.cs` 注册为 `AddSingleton<LowFrequencyPublisher>()` + `AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<LowFrequencyPublisher>())`
+- [x] 采集开始 + MQTT 已连接时自动启动，任一条件不满足时自动停止
+- [x] `Start()` / `Stop()` 线程安全幂等
+- [x] 每 7s 发布一条（无数据时跳过）
+- [x] Topic 格式：`daq/{MachineId}/lowfreq`
+- [x] QoS 1，Retain=否
+- [x] Payload 含还原后的 UTC 时间
+- [x] 不阻塞其他后台服务

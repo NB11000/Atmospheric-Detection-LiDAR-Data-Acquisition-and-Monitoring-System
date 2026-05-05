@@ -1,7 +1,7 @@
 # 跨进程 MMF 端到端集成测试
 
 - **Category**: enhancement
-- **State**: ready-for-human
+- **State**: done
 - **Blocked by**: #2
 
 ## What to build
@@ -15,7 +15,7 @@
 
 ## Acceptance criteria
 
-- [ ] WebAPI Create → 子进程 Open 不崩溃
-- [ ] 子进程 Write 一条 → WebAPI TryRead 读到相同数据
-- [ ] 子进程写入 N 条 → WebAPI TryRead 读到最新一条
-- [ ] WriteIndex 在跨进程间一致可见
+- [x] WebAPI Create → 子进程 Open 不崩溃
+- [x] 子进程 Write 一条 → WebAPI TryRead 读到相同数据
+- [x] 子进程写入 N 条 → WebAPI TryRead 读到最新一条
+- [x] WriteIndex 在跨进程间一致可见
