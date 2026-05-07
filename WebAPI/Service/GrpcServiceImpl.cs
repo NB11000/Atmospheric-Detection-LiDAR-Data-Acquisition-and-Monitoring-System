@@ -73,14 +73,21 @@ namespace WebAPI.Service
         /// </summary>
         private readonly MqttEventPublisher _mqttEventPublisher;
 
+        /// <summary>
+        /// 检测发布服务，接收结构化检测告警并发布到 MQTT
+        /// </summary>
+        private readonly DetectionPublisherService _detectionPublisher;
+
         public GrpcServiceImpl(ILogger<GrpcServiceImpl> logger, IServiceProvider serviceProvider,
-        SystemStateService stateService, SignalRHubPublisher hubPublisher, MqttEventPublisher mqttEventPublisher)
+        SystemStateService stateService, SignalRHubPublisher hubPublisher, MqttEventPublisher mqttEventPublisher,
+        DetectionPublisherService detectionPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _stateService = stateService;
             _hubPublisher = hubPublisher;
             _mqttEventPublisher = mqttEventPublisher;
+            _detectionPublisher = detectionPublisher;
         }
 
         /// <summary>
@@ -200,8 +207,23 @@ namespace WebAPI.Service
                             clientMsg.Content); 
 
                     }
-                    
-                    // 消息类型3：指令响应（客户端处理完服务端指令后返回的结果）
+                    // 消息类型3：检测告警（Detection 线程的结构化告警上报）
+                    else if (clientMsg.MessageType == "Detection")
+                    {
+                        try
+                        {
+                            var alert = System.Text.Json.JsonSerializer.Deserialize<WebAPI.Models.DetectionAlertDto>(
+                                clientMsg.Content);
+                            if (alert != null)
+                                _detectionPublisher.OnAlertReceived(alert);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "解析 Detection 告警失败: {Content}", clientMsg.Content);
+                        }
+                    }
+
+                    // 消息类型4：指令响应（客户端处理完服务端指令后返回的结果）
                     else if (clientMsg.MessageType == "command_response")
                     {
                         _logger.LogInformation($"收到[{processId}]指令[{clientMsg.ResponseId}]响应：{clientMsg.Content}");

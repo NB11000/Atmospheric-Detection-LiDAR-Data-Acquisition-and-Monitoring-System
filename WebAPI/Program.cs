@@ -145,6 +145,9 @@ namespace WebAPI
             // 低频 MQTT 发布服务（采集绑定）
             builder.Services.AddSingleton<LowFrequencyPublisher>();
             builder.Services.AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<LowFrequencyPublisher>());
+            // 检测告警 MQTT 发布服务（采集绑定）
+            builder.Services.AddSingleton<DetectionPublisherService>();
+            builder.Services.AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<DetectionPublisherService>());
             // 采集生命周期协调器（集中管理所有 IAcquisitionBoundService 启停）
             builder.Services.AddSingleton<AcquisitionLifecycleCoordinator>();
             // 注册 4 个 MQTT RPC Handler（单例，通过 DI 注入共享服务层）

@@ -79,6 +79,7 @@ namespace ConsoleApp1.Tools
         /// </summary>
         public static LidarAlgorithmConfig ReadLidarAlgorithmConfig()
         {
+            Config.Reload();
             var config = new LidarAlgorithmConfig();
             Config.GetSection("LidarAlgorithm").Bind(config);
             return config;

@@ -874,8 +874,8 @@ namespace ConsoleApp1.Service
                     var s = samples[i];
                     if (s.CH1 < 0.01 && s.CH1 > -0.01 && i > 100)
                     {
-                        GrpcClient.SendErrorMessage(
-                            $"通道1信号遮挡 @序号{s.Timestamp}", "SIGNAL_OBSTRUCTION");
+                        GrpcClient.SendDetectionMessage("SIGNAL_OBSTRUCTION", "warning",
+                            s.Timestamp, s.CH1, s.CH2);
                         break;
                     }
                 }

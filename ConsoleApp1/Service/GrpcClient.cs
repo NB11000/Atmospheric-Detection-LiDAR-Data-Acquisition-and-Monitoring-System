@@ -469,6 +469,43 @@ namespace ConsoleApp1.Service
         }
 
         /// <summary>
+        /// 客户端主动上报检测告警（结构化 JSON，不走 Error 通道）
+        /// </summary>
+        /// <param name="alarmType">告警类型（SIGNAL_OBSTRUCTION 等）</param>
+        /// <param name="severity">严重程度（info / warning / critical）</param>
+        /// <param name="timestamp">采样点序号</param>
+        /// <param name="ch1">通道 1 电压</param>
+        /// <param name="ch2">通道 2 电压</param>
+        public static void SendDetectionMessage(string alarmType, string severity,
+            long timestamp, double ch1, double ch2)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(new
+                {
+                    AlarmType = alarmType,
+                    Severity = severity,
+                    Timestamp = timestamp,
+                    CH1 = ch1,
+                    CH2 = ch2
+                });
+
+                var msg = ResponsePool.Get();
+                msg.ResponseId = Guid.NewGuid().ToString("N");
+                msg.MessageType = "Detection";
+                msg.Content = json;
+                msg.ErrorCode = "NONE";
+                msg.ProcessId = _processId;
+
+                ResponseQueue.Enqueue(msg);
+            }
+            catch (Exception ex)
+            {
+                Program.logger.LogInformation($"发送检测告警失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 停止客户端：取消令牌，关闭通道
         /// </summary>
         /// <returns></returns>
