@@ -74,6 +74,16 @@ namespace ConsoleApp1.Tools
             Program.deviceconfig.RecalculateSamplePeriod();
         }
 
+        /// <summary>
+        /// 从JSON文件读取激光雷达反演算法配置
+        /// </summary>
+        public static LidarAlgorithmConfig ReadLidarAlgorithmConfig()
+        {
+            var config = new LidarAlgorithmConfig();
+            Config.GetSection("LidarAlgorithm").Bind(config);
+            return config;
+        }
+
     }
 }
 

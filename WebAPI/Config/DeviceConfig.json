@@ -10,6 +10,18 @@
     "RangeIndex": 0
   },
 
+  "LidarAlgorithm": {
+    "GainEqualizationCoefficient": 1.0,
+    "KConstant": 4.48,
+    "ReceiverApertureD_m": 0.2,
+    "PathLengthL_m": 1000.0,
+    "Cn2WindowFrames": 100,
+    "FernaldBoundaryDistance_m": 3000.0,
+    "LaserWavelength_nm": 532.0,
+    "AngstromExponent": 1.3,
+    "DarkCurrentSampleCount": 50
+  },
+
   "Radar": {
     "LaserPower": 0,
     "LaserModulationFrequency": 0,

@@ -34,6 +34,8 @@ namespace ConsoleApp1.Service
         private readonly CoreDataBus _coreBus;
         private readonly UISharedBuffer _uISharedBuffer;
         private readonly CaptureCardConfig _deviceConfig;
+        private readonly LidarAlgorithmConfig _lidarAlgorithmConfig;
+        private readonly LidarInverter _lidarInverter;
         private readonly ILogger _logger;
 
         public IntPtr mHandle;// 句柄
@@ -94,11 +96,13 @@ namespace ConsoleApp1.Service
         /// </summary>
         public string LastStatusMessage { get; set; } = "采集卡未打开";
 
-        public AD_Controlcs(CoreDataBus coreBus, UISharedBuffer uISharedBuffer, CaptureCardConfig deviceConfig, ILogger logger)
+        public AD_Controlcs(CoreDataBus coreBus, UISharedBuffer uISharedBuffer, CaptureCardConfig deviceConfig, LidarAlgorithmConfig lidarAlgorithmConfig, ILogger logger)
         {
             _coreBus = coreBus;
             _uISharedBuffer = uISharedBuffer;
             _deviceConfig = deviceConfig;
+            _lidarAlgorithmConfig = lidarAlgorithmConfig;
+            _lidarInverter = new LidarInverter(lidarAlgorithmConfig);
             _logger = logger;
             cts = new CancellationTokenSource();
             CreateNewDataChannel();
@@ -106,11 +110,15 @@ namespace ConsoleApp1.Service
 
         public AD_Controlcs()
         {
+            _lidarAlgorithmConfig = new LidarAlgorithmConfig();
+            _lidarInverter = new LidarInverter(_lidarAlgorithmConfig);
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌
             CreateNewDataChannel();// 初始化通道实例
         }
         public AD_Controlcs(IntPtr m_Handle)
         {
+            _lidarAlgorithmConfig = new LidarAlgorithmConfig();
+            _lidarInverter = new LidarInverter(_lidarAlgorithmConfig);
             mHandle = m_Handle;
             cts = new CancellationTokenSource();// 初始化 CTS 取消令牌
             CreateNewDataChannel();// 初始化通道实例
@@ -774,9 +782,25 @@ namespace ConsoleApp1.Service
 
                     int count = voltageBlock.SampleCount; // 实际采样点数，根据数据块信息计算得出
                     long baseTick = voltageBlock.StartTick;
-                    
+
                     // 从数组池租用结构化数据数组
                     detArr = ArrayPool<StructuredSample>.Shared.Rent(count);
+
+                    // 激光雷达反演：获取整帧 Vis 和逐距离门 Cn2Profile
+                    double vis;
+                    double[] cn2Profile;
+                    byte chSel = (byte)(_deviceConfig.SyncChannelIndex + 1);
+                    try
+                    {
+                        (vis, cn2Profile) = _lidarInverter.Invert(voltageBlock, chSel);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "LidarInverter.Invert 异常");
+                        vis = -1.0;
+                        cn2Profile = new double[count];
+                        Array.Fill(cn2Profile, -1.0);
+                    }
 
                     // 逐采样点填充结构化数据——每个采样点拥有独立物理时间戳
                     for (int i = 0; i < count; i++)
@@ -785,8 +809,8 @@ namespace ConsoleApp1.Service
                         detArr[i].Time      = baseTick + i * ticksPerSample;
                         detArr[i].CH1       = voltageBlock.Voltage1?[i] ?? 0;
                         detArr[i].CH2       = voltageBlock.Voltage2?[i] ?? 0;
-                        detArr[i].Vis       = 0.0;
-                        detArr[i].Cn2       = 0.0;
+                        detArr[i].Vis       = vis;
+                        detArr[i].Cn2       = i < cn2Profile.Length ? cn2Profile[i] : -1.0;
                         detArr[i].Temp      = 0.0;
                         detArr[i].Humi      = 0.0;
                         detArr[i].Press     = 0.0;

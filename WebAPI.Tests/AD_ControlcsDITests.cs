@@ -17,6 +17,7 @@ public class AD_ControlcsDITests
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(NullLogger.Instance);
         services.AddSingleton(new CaptureCardConfig());
+        services.AddSingleton(new LidarAlgorithmConfig());
         services.AddSingleton(new UISharedBuffer());
         services.AddSingleton(new CoreDataBus());
         services.AddSingleton<AD_Controlcs>();
@@ -36,6 +37,7 @@ public class AD_ControlcsDITests
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(NullLogger.Instance);
         services.AddSingleton(new CaptureCardConfig());
+        services.AddSingleton(new LidarAlgorithmConfig());
         services.AddSingleton(new UISharedBuffer());
         services.AddSingleton(coreBus);
         services.AddSingleton<AD_Controlcs>();
@@ -58,6 +60,7 @@ public class AD_ControlcsDITests
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(NullLogger.Instance);
         services.AddSingleton(new CaptureCardConfig());
+        services.AddSingleton(new LidarAlgorithmConfig());
         services.AddSingleton(uiBuffer);
         services.AddSingleton(new CoreDataBus());
         services.AddSingleton<AD_Controlcs>();
@@ -80,6 +83,7 @@ public class AD_ControlcsDITests
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(NullLogger.Instance);
         services.AddSingleton(config);
+        services.AddSingleton(new LidarAlgorithmConfig());
         services.AddSingleton(new UISharedBuffer());
         services.AddSingleton(new CoreDataBus());
         services.AddSingleton<AD_Controlcs>();
@@ -102,6 +106,7 @@ public class AD_ControlcsDITests
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(logger);
         services.AddSingleton(new CaptureCardConfig());
+        services.AddSingleton(new LidarAlgorithmConfig());
         services.AddSingleton(new UISharedBuffer());
         services.AddSingleton(new CoreDataBus());
         services.AddSingleton<AD_Controlcs>();

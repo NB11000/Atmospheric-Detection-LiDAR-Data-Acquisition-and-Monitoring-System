@@ -147,12 +147,16 @@ namespace ConsoleApp1
                 //从JSON文件读取设备配置到实体类
                 ConfigHelper.ReadDeviceConfig();
 
+                // 读取激光雷达反演算法配置
+                var lidarAlgorithmConfig = ConfigHelper.ReadLidarAlgorithmConfig();
+
                 // ==============================================
                 // 构建 DI 容器（依赖注入）
                 // ==============================================
                 var services = new ServiceCollection();
                 services.AddSingleton<ILogger>(logger);
                 services.AddSingleton(deviceconfig);
+                services.AddSingleton(lidarAlgorithmConfig);
                 services.AddSingleton(uISharedBuffer);
                 services.AddSingleton(coreBus);
                 services.AddSingleton<AD_Controlcs>();
