@@ -16,3 +16,30 @@
 - 三个服务全部注册为纯 Singleton，自行管理 CTS 和 IDisposable
 - Coordinator 通过 `IEnumerable<IAcquisitionBoundService>` 发现所有服务，新增消费者只需注册接口
 - MqttRpcBackgroundService 不再注入 WaveformPublishService，改为注入 SystemStateService 更新 MQTT 状态
+
+
+先用 /grill-me 问透需求；
+让它整理成 PLAN.md；
+
+
+帮我设计一个技能,用 /grill-me 或 
+/grill-with-docs问透需求，让它自动整理计划
+
+我发现从/grill-me 或 /grill-with-docs 到 /TDD 缺少一个自动串联的过程。帮我分析一下。 
+
+做成一个自定义的skill技能，用于输出grill 阶段的结果供t d d使用。 
+
+
+我的小宝是当g r i l l结束后，用户不需要调用它固定参数，而是 随着g r i l l结束后，自动调用。 或者说，g r i l l。 期间 就执行了也就是说我需要他跟g r i l l过程融合。 
+
+并且当前有一个更重要的问题也就是运行 t d d时 发现并没有按照 测试驱动设计，这样的地点，它并没有先写测试而是直接实现了。 
+
+根据你的建议。并且当前有一个更重要的问题也就是运行 t d d时 发现并没有按照 测试驱动设计，这样的地点，它并没有先写测试而是直接实现了。 
+
+我认为，直接在  spec-from-grill中写明更好
+
+我同意这个路径，但我希望他输出的这个设计方案或者设计文档。 可以让用户看到。 可以让开发者看到可以输出在项目中的某个地方 也就是说我希望这个技能能够同时，输出两种东西一种给agent看一种给开发者看。 
+
+/grill-me /grill-with-docs的缺点是太简单：只提问，不会自动整理计划。
+
+我的想法是先/grill-me /grill-with-docs 再to prd，然后再整理计划，再to-issue。你认为如何

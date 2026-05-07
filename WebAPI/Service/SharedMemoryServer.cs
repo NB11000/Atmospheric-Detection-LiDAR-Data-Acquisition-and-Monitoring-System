@@ -341,6 +341,4 @@ namespace WebAPISharedMemoryFramework
         public long ReferenceTick;       // Create() 时刻 Stopwatch.GetTimestamp()
         public long ReferenceUtcTicks;   // Create() 时刻 DateTime.UtcNow.Ticks（100ns 单位）
     }
-
-
 }
