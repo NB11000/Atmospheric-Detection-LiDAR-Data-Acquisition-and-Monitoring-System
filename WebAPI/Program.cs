@@ -134,6 +134,8 @@ namespace WebAPI
             // ===== MQTT RPC 主通道服务注册 =====
             // 绑定 MQTT 配置选项
             builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
+            // 绑定持久化配置选项
+            builder.Services.Configure<PersistenceSettings>(builder.Configuration.GetSection("Persistence"));
             // MQTT 事件发布器（单例，替代 SignalR 作为主事件推送通道）
             builder.Services.AddSingleton<MqttEventPublisher>();
             // 波形发布服务（采集绑定，由 AcquisitionLifecycleCoordinator 驱动启停）

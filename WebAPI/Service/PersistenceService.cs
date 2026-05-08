@@ -21,10 +21,13 @@ namespace WebAPI.Service
 
         public bool RequiresMqttConnection => false;
 
-        private const int IntervalSeconds = 30;
+        /// <summary>
+        /// 持久化服务周期（秒），每隔固定时间从 CoreDataBus 读取最新数据样本，并追加写入当天的 CSV 文件
+        /// </summary>
+        private const int IntervalSeconds = 5;
 
         private readonly CoreDataBus _coreDataBus;
-        private readonly IOptionsMonitor<MqttSettings> _mqttSettings;
+        private readonly IOptionsMonitor<PersistenceSettings> _settings;
         private readonly ILogger<PersistenceService> _logger;
 
         private readonly object _lock = new();
@@ -33,11 +36,11 @@ namespace WebAPI.Service
 
         public PersistenceService(
             CoreDataBus coreDataBus,
-            IOptionsMonitor<MqttSettings> mqttSettings,
+            IOptionsMonitor<PersistenceSettings> settings,
             ILogger<PersistenceService> logger)
         {
             _coreDataBus = coreDataBus;
-            _mqttSettings = mqttSettings;
+            _settings = settings;
             _logger = logger;
         }
 
@@ -97,7 +100,8 @@ namespace WebAPI.Service
 
                     var now = DateTime.Now;
                     var fileName = $"{now:yyyy-MM-dd}_{now:HH}.csv";
-                    var filePath = Path.Combine("data", fileName);
+                    var dataDir = _settings.CurrentValue.DataDirectory;
+                    var filePath = Path.Combine(dataDir, fileName);
 
                     Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
