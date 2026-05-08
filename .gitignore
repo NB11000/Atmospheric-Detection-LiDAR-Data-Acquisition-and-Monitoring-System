@@ -29,6 +29,7 @@ Thumbs.db
 *.tmp
 *.log
 
+
 # Avalonia 临时文件
 **/obj/Debug/**/apphost.exe
 **/obj/Debug/**/ref/
