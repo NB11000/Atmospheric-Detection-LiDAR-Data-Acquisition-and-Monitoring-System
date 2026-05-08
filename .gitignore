@@ -19,6 +19,9 @@ obj/
 *.iso
 *.bak
 
+# NuGet 包（由 restore 自动下载）
+packages/
+
 # Copilot/索引文件
 **/CopilotIndices/
 **/FileContentIndex/
@@ -38,3 +41,11 @@ WebAPI/logs
 
 
 Properties/
+
+# Playwright 自动下载的驱动
+.playwright/
+
+# Avalonia 项目
+.AvaloniaApplication1/
+
+
