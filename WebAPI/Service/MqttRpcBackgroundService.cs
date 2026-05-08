@@ -224,6 +224,7 @@ namespace WebAPI.Service
             Merge(_serviceProvider.GetRequiredService<MqttRpc.LaserHandler>().GetHandlers());
             Merge(_serviceProvider.GetRequiredService<MqttRpc.SystemHandler>().GetHandlers());
             Merge(_serviceProvider.GetRequiredService<MqttRpc.LogHandler>().GetHandlers());
+            Merge(_serviceProvider.GetRequiredService<MqttRpc.ConfigHandler>().GetHandlers());
 
             return table;
         }

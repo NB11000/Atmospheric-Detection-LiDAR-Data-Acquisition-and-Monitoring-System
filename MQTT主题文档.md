@@ -2,7 +2,7 @@
 
 > Brocker: `z0d131fe.ala.cn-hangzhou.emqxsl.cn:8883`（EMQX Serverless，MQTTS/TLS 1.2+）  
 > 认证: 用户名/密码 (`001`/`001`) + CA 证书 `emqxsl-ca.crt`  
-> 协议: MQTTnet 5.1.0 | 文档版本: 2026-04-28
+> 协议: MQTTnet 5.1.0 | 文档版本: 2026-05-08
 
 ---
 
@@ -74,6 +74,57 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `dataType` | `string` | 数据类型标识，如 `waveform_frame` |
 | `data` | `object` | 携带的数据体 |
 | `timestamp` | `DateTime` | 事件时间戳 |
+
+> **注意**：该主题对应的方法 `PublishDataUpdatedAsync` 当前无调用方，处于待启用状态。
+
+---
+
+#### 2.1.3 低频采样数据
+
+| 项目 | 说明 |
+|------|------|
+| **主题** | `daq/{MachineId}/lowfreq` |
+| **发布者** | `LowFrequencyPublisher`（WebAPI 主控进程，采集绑定） |
+| **订阅者** | 远程监控前端 / 数据分析平台 |
+| **QoS** | 1（至少一次） |
+| **Retain** | 否 |
+| **发布间隔** | 7 s（固定） |
+
+**负载 JSON**
+
+```json
+{
+  "timestamp": 123456,
+  "utc": "2026-04-28T15:00:00.0000000Z",
+  "ch1": 1.234,
+  "ch2": -0.567,
+  "vis": 12.345,
+  "cn2": 8.90e-13,
+  "temp": 22.5,
+  "humi": 60.2,
+  "press": 1013.25,
+  "windSpd": 2.5,
+  "rain": 0.0,
+  "windDir": 180.0
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `timestamp` | `long` | 采样点序号（session-local 递增） |
+| `utc` | `string` | UTC 绝对时间（ISO 8601 格式） |
+| `ch1` | `double` | 通道 1 电压值 |
+| `ch2` | `double` | 通道 2 电压值 |
+| `vis` | `double` | 能见度（km），整帧共享 |
+| `cn2` | `double` | 折射率结构常数（m⁻²/³） |
+| `temp` | `double` | 温度（℃） |
+| `humi` | `double` | 相对湿度（%） |
+| `press` | `double` | 大气压力（hPa） |
+| `windSpd` | `double` | 风速（m/s） |
+| `rain` | `double` | 雨量（mm） |
+| `windDir` | `double` | 风向（°） |
+
+> 本质为周期性快照抽样（7s 取一次最新值），非全量归档。12 字段对应 `StructuredSample` 完整结构。
 
 ---
 
@@ -202,10 +253,10 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | 项目 | 说明 |
 |------|------|
 | **主题** | `daq/{MachineId}/events/state_changed` |
-| **发布者** | `MqttEventPublisher`（主动推送）/ EMQX Broker（遗嘱消息） |
+| **发布者** | `MqttEventPublisher`（WebAPI 主控进程） |
 | **订阅者** | 所有监控方 |
 | **QoS** | 1 |
-| **Retain** | **遗嘱消息=true**，普通发布=false |
+| **Retain** | 否 |
 
 **负载 JSON**
 
@@ -229,13 +280,22 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `state` | `SystemStateDto?` | 当前系统状态快照 |
 | `timestamp` | `DateTime` | 事件时间戳 |
 
-**遗嘱消息特例**（`source="mqtt_broker"`, `eventType="process_crashed"`）：
+**遗嘱消息特例** — 独立主题 `daq/{MachineId}/events/will`：
+
+| 项目 | 说明 |
+|------|------|
+| **主题** | `daq/{MachineId}/events/will` |
+| **发布者** | EMQX Broker（遗嘱消息，进程崩溃时自动发布） |
+| **QoS** | 1（至少一次） |
+| **Retain** | **true**（新订阅者立即感知宕机） |
+
+**遗嘱负载 JSON**
 
 ```json
-{"eventType":"process_crashed","source":"mqtt_broker","reason":"will_message","message":"进程已异常退出"}
+{"eventType":"process_crashed","source":"mqtt_broker","reason":"will_message","message":"设备已离线"}
 ```
 
-> 遗嘱消息设置 Retain=true，新订阅者订阅该主题后立即收到此消息，可快速判定进程已宕机。
+> 遗嘱消息在 `MqttRpcBackgroundService` 连接 Broker 时设置，进程异常退出时由 Broker 代为发布。恢复时需发布 `state_changed`（`eventType="collector_connected"`）覆盖 Retain 状态。
 
 #### 2.3.2 主动查询心跳
 
@@ -248,6 +308,8 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 ---
 
 ### 2.4 告警通知
+
+#### 2.4.1 设备报警
 
 | 项目 | 说明 |
 |------|------|
@@ -276,6 +338,41 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `message` | `string` | 报警详情 |
 | `severity` | `int` | 严重程度 1–5，5 最高 |
 | `timestamp` | `DateTime` | 报警时间戳 |
+
+---
+
+#### 2.4.2 检测告警
+
+| 项目 | 说明 |
+|------|------|
+| **主题** | `daq/{MachineId}/detection/alerts` |
+| **发布者** | `DetectionPublisherService`（WebAPI 主控进程，采集绑定） |
+| **订阅者** | 告警管理平台 / 运维监控端 |
+| **QoS** | 1（至少一次） |
+| **Retain** | 否 |
+| **触发方式** | 检测线程通过 gRPC 双向流上报 → `GrpcServiceImpl` 路由 → `DetectionPublisherService.OnAlertReceived()` → 异步发布 |
+
+**负载 JSON**
+
+```json
+{
+  "alarmType": "obstruction",
+  "severity": "High",
+  "timestamp": 1234567890,
+  "ch1": 0.002,
+  "ch2": 0.003
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `alarmType` | `string` | 告警类型（`obstruction` = 信号遮挡，`condition` = 工况异常，`jump` = 跳变） |
+| `severity` | `string` | 严重程度（`Low` / `Medium` / `High` / `Critical`） |
+| `timestamp` | `long` | 告警触发时的采样点序号 |
+| `ch1` | `double` | 触发时通道 1 电压值 |
+| `ch2` | `double` | 触发时通道 2 电压值 |
+
+> 与 2.4.1 设备报警的区别：设备报警关注采集卡/激光器等硬件异常，检测告警关注数据层面（遮挡、工况、跳变）。
 
 ---
 
@@ -342,10 +439,12 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | RPC 请求 `$rpc/+/#` | 1 | 否 | 命令不可丢失 |
 | RPC 响应 | 1 | 否 | 响应必须送达调用方 |
 | `waveform/ch1`, `ch2` | 0 | 否 | 高频流（100ms/帧），丢帧优于积压 |
-| `state_changed`（正常） | 1 | 否 | 状态变更不可丢，但不需回放 |
-| `state_changed`（遗嘱） | 1 | **是** | 新订阅者立即感知宕机 |
+| `lowfreq` | 1 | 否 | 低频快照不可丢失 |
+| `state_changed` | 1 | 否 | 状态变更不可丢，但不需回放 |
+| `events/will`（遗嘱） | 1 | **是** | 新订阅者立即感知宕机 |
 | `device_alarm` | 1 | **是** | 报警必须送达，覆盖旧值 |
-| `data_updated` | 0 | 否 | 低延迟优先，允许丢帧 |
+| `detection/alerts` | 1 | 否 | 检测告警不可丢失 |
+| `data_updated` | 0 | 否 | 低延迟优先，允许丢帧（当前无调用方） |
 
 ---
 
@@ -361,10 +460,12 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 **推荐订阅模式**：
 
 ```
-$rpc/{MachineId}/#          ← 服务端订阅本机所有 RPC 请求
-daq/{MachineId}/waveform/#  ← 订阅本机波形
-daq/{MachineId}/events/#    ← 订阅本机事件
-daq/+/events/state_changed  ← 跨设备统一监控
+$rpc/{MachineId}/#              ← 服务端订阅本机所有 RPC 请求
+daq/{MachineId}/waveform/#      ← 订阅本机波形
+daq/{MachineId}/events/#        ← 订阅本机事件（含 will / state_changed / device_alarm / data_updated）
+daq/{MachineId}/lowfreq         ← 订阅本机低频采样数据
+daq/{MachineId}/detection/#     ← 订阅本机检测告警
+daq/+/events/state_changed      ← 跨设备统一监控
 ```
 
 ### 4.2 安全建议

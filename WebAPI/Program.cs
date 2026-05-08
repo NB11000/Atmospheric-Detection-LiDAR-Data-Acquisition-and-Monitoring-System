@@ -39,6 +39,16 @@ namespace WebAPI
         public static RadarConfig RadarConfig { get; set; } = new RadarConfig();
 
         /// <summary>
+        /// 反演算法配置实体属性
+        /// </summary>
+        public static LidarAlgorithmConfig LidarConfig { get; set; } = new LidarAlgorithmConfig();
+
+        /// <summary>
+        /// 持久化配置实体属性
+        /// </summary>
+        public static PersistenceSettings PersistenceConfig { get; set; } = new PersistenceSettings();
+
+        /// <summary>
         /// 初始化日志 ：日志不再手动创建，统一由 DI 注入
         /// </summary>
         // public static ILogger logger { get; set; } = null!;
@@ -134,8 +144,10 @@ namespace WebAPI
             // ===== MQTT RPC 主通道服务注册 =====
             // 绑定 MQTT 配置选项
             builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
-            // 绑定持久化配置选项
-            builder.Services.Configure<PersistenceSettings>(builder.Configuration.GetSection("Persistence"));
+            // 绑定持久化配置选项（从 DeviceConfig.json）
+            builder.Services.Configure<PersistenceSettings>(ConfigHelper.Config.GetSection("Persistence"));
+            // 绑定反演算法配置选项（从 DeviceConfig.json）
+            builder.Services.Configure<LidarAlgorithmConfig>(ConfigHelper.Config.GetSection("LidarAlgorithm"));
             // MQTT 事件发布器（单例，替代 SignalR 作为主事件推送通道）
             builder.Services.AddSingleton<MqttEventPublisher>();
             // 波形发布服务（采集绑定，由 AcquisitionLifecycleCoordinator 驱动启停）
@@ -152,11 +164,12 @@ namespace WebAPI
             builder.Services.AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<DetectionPublisherService>());
             // 采集生命周期协调器（集中管理所有 IAcquisitionBoundService 启停）
             builder.Services.AddSingleton<AcquisitionLifecycleCoordinator>();
-            // 注册 4 个 MQTT RPC Handler（单例，通过 DI 注入共享服务层）
+            // 注册 5 个 MQTT RPC Handler（单例，通过 DI 注入共享服务层）
             builder.Services.AddSingleton<MqttRpc.CollectorHandler>();
             builder.Services.AddSingleton<MqttRpc.LaserHandler>();
             builder.Services.AddSingleton<MqttRpc.SystemHandler>();
             builder.Services.AddSingleton<MqttRpc.LogHandler>();
+            builder.Services.AddSingleton<MqttRpc.ConfigHandler>();
             // 将 MQTT RPC 服务作为 ASP.NET Core BackgroundService 托管
             builder.Services.AddHostedService<MqttRpcBackgroundService>();
             // ====================================
@@ -277,6 +290,8 @@ namespace WebAPI
                     // 读取配置文件并更新全局配置实体
                     configHelper.ReadDeviceConfig();
                     configHelper.ReadRadarDeviceConfig();
+                    configHelper.ReadLidarConfig();
+                    configHelper.ReadPersistenceConfig();
                     // 启动子进程，并将主进程监听的ip地址转递给子进程
                     int parentProcessId = Process.GetCurrentProcess().Id;
                     ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);

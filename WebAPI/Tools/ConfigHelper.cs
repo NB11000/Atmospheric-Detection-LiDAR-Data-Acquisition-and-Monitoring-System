@@ -14,7 +14,10 @@ using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using WebAPI;
 using WebAPI.Controllers;
+using System.Runtime.CompilerServices;
 using WebAPI.Models;
+
+[assembly: InternalsVisibleTo("WebAPI.Tests")]
 
 namespace WebAPI.Tools
 {
@@ -46,10 +49,11 @@ namespace WebAPI.Tools
         /// </summary>
         private readonly IOptionsMonitor<CaptureCardConfig> captureCardConfig;
 
-        /// <summary>
-        /// 
-        /// </summary>
         private readonly IOptionsMonitor<RadarConfig> radarConfig;
+
+        private readonly IOptionsMonitor<LidarAlgorithmConfig> lidarConfig;
+
+        private readonly IOptionsMonitor<PersistenceSettings> persistenceSettings;
 
         private readonly ILogger<ConfigHelper> _logger;
 
@@ -57,11 +61,17 @@ namespace WebAPI.Tools
         /// <summary>
         /// 通过构造方法依赖注入
         /// </summary>
-        /// <param name="captureCardConfig"></param>
-        public ConfigHelper(IOptionsMonitor<CaptureCardConfig> captureCardConfig, IOptionsMonitor<RadarConfig> radarConfig, ILogger<ConfigHelper> logger)
+        public ConfigHelper(
+            IOptionsMonitor<CaptureCardConfig> captureCardConfig,
+            IOptionsMonitor<RadarConfig> radarConfig,
+            IOptionsMonitor<LidarAlgorithmConfig> lidarConfig,
+            IOptionsMonitor<PersistenceSettings> persistenceSettings,
+            ILogger<ConfigHelper> logger)
         {
             this.captureCardConfig = captureCardConfig;
             this.radarConfig = radarConfig;
+            this.lidarConfig = lidarConfig;
+            this.persistenceSettings = persistenceSettings;
             _logger = logger;
         }
 
@@ -287,6 +297,153 @@ namespace WebAPI.Tools
 
         }
 
+        /// <summary>
+        /// 从 DeviceConfig.json 读取反演算法配置（逐字段拷贝到全局静态实体）
+        /// </summary>
+        public void ReadLidarConfig()
+        {
+            ConfigHelper.Config.Reload();
+            Program.LidarConfig.GainEqualizationCoefficient = lidarConfig.CurrentValue.GainEqualizationCoefficient;
+            Program.LidarConfig.KConstant = lidarConfig.CurrentValue.KConstant;
+            Program.LidarConfig.ReceiverApertureD_m = lidarConfig.CurrentValue.ReceiverApertureD_m;
+            Program.LidarConfig.PathLengthL_m = lidarConfig.CurrentValue.PathLengthL_m;
+            Program.LidarConfig.Cn2WindowFrames = lidarConfig.CurrentValue.Cn2WindowFrames;
+            Program.LidarConfig.FernaldBoundaryDistance_m = lidarConfig.CurrentValue.FernaldBoundaryDistance_m;
+            Program.LidarConfig.LaserWavelength_nm = lidarConfig.CurrentValue.LaserWavelength_nm;
+            Program.LidarConfig.AngstromExponent = lidarConfig.CurrentValue.AngstromExponent;
+            Program.LidarConfig.DarkCurrentSampleCount = lidarConfig.CurrentValue.DarkCurrentSampleCount;
+            Program.LidarConfig.SampleRateHz = lidarConfig.CurrentValue.SampleRateHz;
+            Program.LidarConfig.BlindZoneDistance_m = lidarConfig.CurrentValue.BlindZoneDistance_m;
+        }
+
+        /// <summary>
+        /// 将反演算法配置写入 DeviceConfig.json
+        /// </summary>
+        public void WriteLidarConfig(LidarAlgorithmConfig config)
+        {
+            try
+            {
+                var rootConfig = ReadRootConfig();
+                rootConfig.LidarAlgorithm = config;
+                WriteRootConfig(rootConfig);
+                _logger.LogInformation("反演算法配置已写入：{Path}", ConfigFilePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                throw new InvalidOperationException($"无写入权限！请检查路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (IOException ex)
+            {
+                throw new InvalidOperationException($"文件写入失败！路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"反演配置写入失败：{ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 从 DeviceConfig.json 读取持久化配置（逐字段拷贝到全局静态实体）
+        /// </summary>
+        public void ReadPersistenceConfig()
+        {
+            ConfigHelper.Config.Reload();
+            Program.PersistenceConfig.DataDirectory = persistenceSettings.CurrentValue.DataDirectory;
+        }
+
+        private static readonly HashSet<string> WindowsReservedNames = new HashSet<string>(
+            new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" },
+            StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 将持久化配置写入 DeviceConfig.json
+        /// </summary>
+        public void WritePersistenceConfig(PersistenceSettings config)
+        {
+            ValidatePersistenceConfig(config);
+
+            try
+            {
+                var rootConfig = ReadRootConfig();
+                rootConfig.Persistence = config;
+                WriteRootConfig(rootConfig);
+                _logger.LogInformation("持久化配置已写入：{Path}", ConfigFilePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                throw new InvalidOperationException($"无写入权限！请检查路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (IOException ex)
+            {
+                throw new InvalidOperationException($"文件写入失败！路径：{ConfigFilePath}。错误：{ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"持久化配置写入失败：{ex.Message}", ex);
+            }
+        }
+
+        internal static void ValidatePersistenceConfig(PersistenceSettings config)
+        {
+            if (config == null)
+                throw new InvalidOperationException("持久化配置不能为空");
+
+            var dir = config.DataDirectory;
+            if (string.IsNullOrWhiteSpace(dir))
+                throw new InvalidOperationException("数据目录不能为空或仅包含空白字符");
+
+            var invalidChars = Path.GetInvalidFileNameChars()
+                .Where(c => c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar && c != ':')
+                .ToArray();
+            if (dir.IndexOfAny(invalidChars) >= 0)
+                throw new InvalidOperationException($"数据目录包含非法字符：{dir}");
+
+            var segment = dir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .LastOrDefault(s => !string.IsNullOrEmpty(s));
+            if (segment != null && WindowsReservedNames.Contains(segment))
+                throw new InvalidOperationException($"数据目录使用了 Windows 保留名：{segment}");
+        }
+
+        private RootConfig ReadRootConfig()
+        {
+            if (File.Exists(ConfigFilePath))
+            {
+                var existingJson = File.ReadAllText(ConfigFilePath);
+                return JsonSerializer.Deserialize(existingJson, ConfigJsonContext.Default.RootConfig) ?? new RootConfig();
+            }
+            return new RootConfig();
+        }
+
+        private void WriteRootConfig(RootConfig rootConfig)
+        {
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                Converters = { new JsonDecimalConverter() }
+            };
+            var jsonContext = new ConfigJsonContext(jsonOptions);
+            var jsonString = JsonSerializer.Serialize(rootConfig, jsonContext.RootConfig);
+
+            using (var stream = new FileStream(
+                ConfigFilePath,
+                FileMode.Open,
+                FileAccess.Write,
+                FileShare.ReadWrite,
+                4096,
+                FileOptions.WriteThrough))
+            {
+                stream.SetLength(0);
+                using (var writer = new StreamWriter(stream, Encoding.UTF8))
+                {
+                    writer.Write(jsonString);
+                    writer.Flush();
+                    stream.Flush(true);
+                }
+            }
+        }
+
     }
 
 
@@ -305,6 +462,16 @@ namespace WebAPI.Tools
         /// 雷达配置节点
         /// </summary>
         public RadarConfig Radar { get; set; } = new RadarConfig();
+
+        /// <summary>
+        /// 反演算法配置节点
+        /// </summary>
+        public LidarAlgorithmConfig LidarAlgorithm { get; set; } = new LidarAlgorithmConfig();
+
+        /// <summary>
+        /// 持久化配置节点
+        /// </summary>
+        public PersistenceSettings Persistence { get; set; } = new PersistenceSettings();
     }
 
     /// <summary>
@@ -332,6 +499,8 @@ namespace WebAPI.Tools
     [JsonSerializable(typeof(RootConfig))]
     [JsonSerializable(typeof(CaptureCardConfig))]
     [JsonSerializable(typeof(RadarConfig))]
+    [JsonSerializable(typeof(LidarAlgorithmConfig))]
+    [JsonSerializable(typeof(PersistenceSettings))]
     [JsonSerializable(typeof(JsonElement))] // 新增：支持JsonElement类型
     public partial class ConfigJsonContext : JsonSerializerContext
     {

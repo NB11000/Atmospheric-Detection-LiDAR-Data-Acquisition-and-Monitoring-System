@@ -19,7 +19,9 @@
     "FernaldBoundaryDistance_m": 3000.0,
     "LaserWavelength_nm": 532.0,
     "AngstromExponent": 1.3,
-    "DarkCurrentSampleCount": 50
+    "DarkCurrentSampleCount": 50,
+    "SampleRateHz": 20000000.0,
+    "BlindZoneDistance_m": 30.0
   },
 
   "Radar": {
@@ -27,6 +29,10 @@
     "LaserModulationFrequency": 0,
     "SerialPort": "",
     "BaudRate": 9600
+  },
+
+  "Persistence": {
+    "DataDirectory": "data"
   }
 
 }

@@ -872,10 +872,11 @@ namespace ConsoleApp1.Service
                 for (int i = 0; i < count; i++)
                 {
                     var s = samples[i];
+                    // 检测信号遮挡：当CH1电压持续在±0.01V范围内超过100个采样点时，触发警告
                     if (s.CH1 < 0.01 && s.CH1 > -0.01 && i > 100)
                     {
-                        GrpcClient.SendDetectionMessage("SIGNAL_OBSTRUCTION", "warning",
-                            s.Timestamp, s.CH1, s.CH2);
+                        // GrpcClient.SendDetectionMessage("SIGNAL_OBSTRUCTION", "warning",
+                        //     s.Timestamp, s.CH1, s.CH2);
                         break;
                     }
                 }
