@@ -42,10 +42,13 @@ WebAPI/logs
 
 Properties/
 
+# 项目文档与临时参考文件（不作为代码追踪）
+WebAPI接口文档.md
+001.txt
+
 # Playwright 自动下载的驱动
 .playwright/
 
 # 忽略整个 Avalonia 项目（你要的效果）
 AvaloniaApplication1/
-
 
