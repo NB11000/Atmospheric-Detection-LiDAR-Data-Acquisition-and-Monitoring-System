@@ -45,7 +45,7 @@ Properties/
 # Playwright 自动下载的驱动
 .playwright/
 
-# Avalonia 项目
-.AvaloniaApplication1/
+# 忽略整个 Avalonia 项目（你要的效果）
+AvaloniaApplication1/
 
 
