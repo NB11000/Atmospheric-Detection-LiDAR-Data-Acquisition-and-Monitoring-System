@@ -47,6 +47,12 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\ConsoleApp1\ConsoleApp1.csproj" />
-	</ItemGroup>	
+	</ItemGroup>
+  
+  <ItemGroup>
+    <Content Include="emqxsl-ca.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>
