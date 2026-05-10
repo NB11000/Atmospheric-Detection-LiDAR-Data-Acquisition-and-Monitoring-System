@@ -273,8 +273,8 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `eventType` | `string` | `collector_connected`、`collector_disconnected`、`laser_connected`、`laser_disconnected`、`process_crashed` |
-| `source` | `string` | `collector`、`laser`、`system`、`mqtt_broker` |
+| `eventType` | `string` | 16 种事件类型，定义于 `WebAPI/Models/StateChangeEvents.cs`：`collector_connected`、`collector_disconnected`、`device_opened`、`device_closed`、`acquisition_started`、`acquisition_stopped`、`device_disconnected`、`acquisition_failed`、`device_open_failed`、`laser_connected`、`laser_disconnected`、`laser_on`、`laser_off`、`error`、`mqtt_connected`、`mqtt_disconnected`。遗嘱消息独立使用 `process_crashed`（由 Broker 发布，不在此常量类中） |
+| `source` | `string` | `collector`（采集卡事件）、`laser`（激光器事件）、`system`（MQTT 连接/断开等系统级事件）、`mqtt_broker`（遗嘱消息） |
 | `reason` | `string` | 变更原因 |
 | `message` | `string` | 可读描述 |
 | `state` | `SystemStateDto?` | 当前系统状态快照 |
@@ -480,4 +480,4 @@ daq/+/events/state_changed      ← 跨设备统一监控
 
 ---
 
-> **维护说明**：新增 RPC 方法或事件类型时，同步更新本文档对应表格。
+> **维护说明**：新增 RPC 方法或事件类型时，同步更新本文档对应表格。事件类型常量定义于 `WebAPI/Models/StateChangeEvents.cs`，新增 eventType 后须同步更新该常量类与本文档 §2.3.1。
