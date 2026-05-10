@@ -766,6 +766,7 @@ namespace ConsoleApp1.Service
 
             Voltage_block voltageBlock = default;
             StructuredSample[] detArr = null; // 从数组池租用的结构化数据数组，长度根据实际采样点数动态确定
+            double[] cn2Profile = null;
             try
             {
                 while (ADDataTest_RunFlag)
@@ -788,7 +789,6 @@ namespace ConsoleApp1.Service
 
                     // 激光雷达反演：获取整帧 Vis 和逐距离门 Cn2Profile
                     double vis;
-                    double[] cn2Profile;
                     byte chSel = (byte)(_deviceConfig.SyncChannelIndex + 1);
                     try
                     {
@@ -832,6 +832,8 @@ namespace ConsoleApp1.Service
                         ArrayPool<double>.Shared.Return(voltageBlock.Voltage1);
                     if (voltageBlock.Voltage2 != null)
                         ArrayPool<double>.Shared.Return(voltageBlock.Voltage2);
+                    if (cn2Profile != null)
+                        ArrayPool<double>.Shared.Return(cn2Profile);
                 }
             }
             catch (Exception ex)
@@ -846,7 +848,8 @@ namespace ConsoleApp1.Service
                     ArrayPool<double>.Shared.Return(voltageBlock.Voltage2);
                 if (detArr != null)
                     ArrayPool<StructuredSample>.Shared.Return(detArr);
-                    
+                if (cn2Profile != null)
+                    ArrayPool<double>.Shared.Return(cn2Profile);
             }
         }
 

@@ -152,6 +152,45 @@ Analysis 线程在逐点填充 StructuredSample 的 for 循环之前调用。
 
 ---
 
+### 测试与模拟
+
+**模拟模式 (Mock Mode)**：
+通过 `--mock` 命令行标志进入的特殊运行模式，硬件采集被假数据生成器替代，健康端点激活。主控和子进程均需支持。
+_Avoid_: 测试模式、模拟测试、dry-run
+
+**模拟数据生成器 (Mock Data Generator)**：
+替代 ADWork 线程，按配置生成合成 `Data_Block`（模拟 USB1602 输出格式），受同一 `ADDataTest_RunFlag` 和 `cts` 控制启停。可注入异常模式（零值段、饱和、通道掉线、时间戳跳跃）。
+_Avoid_: 假数据源、虚拟采集卡
+
+**数据异常模式 (Anomaly Pattern)**：
+- **zero_segment**：全零数据段（CH1=CH2=0），模拟信号遮挡或硬件故障
+- **saturated**：通道全 65535，模拟 ADC 饱和
+- **channel_dropout**：单通道全零、另一通道正常，模拟单通道掉线
+- **timestamp_gap**：跳过一批采样点，模拟数据帧断裂
+- **usb_disconnect**：停止写入 channel N 秒后恢复，模拟 USB 线缆松动
+
+**健康端点 (Health Endpoint)**：
+子进程在 `--mock` 下通过 `HttpListener` 暴露的 HTTP 端点（固定端口 19999），返回 JSON 格式的内部指标：线程运行状态、channel 当前队列长度、采样计数、DropOldest 触发次数、内存（WorkingSet）、GC 代龄。
+_Avoid_: 监控端口、诊断端口
+
+**SimulationRunner**：
+独立 .NET 控制台项目，按场景 JSON 文件编排 S/M/L 三个阶段，启动 WebAPI → WebAPI 自动 spawn 子进程，通过 REST API + MQTT 订阅 + 子进程健康端点三方观测，自动断言并生成 JSON 报告。
+_Avoid_: 测试脚本、集成测试项目
+
+**场景文件 (Scenario File)**：
+JSON 文件定义测试阶段的时长、检查点列表、异常注入规则（顺序精确时间线或随机区间）。每个检查点包含触发时间和断言类型。
+_Avoid_: 测试配置、参数文件
+
+**检查点 (Checkpoint)**：
+场景中定时触发的断言，如 `grpc_connected`、`threads_all_running`、`mmf_write_index_advancing`、`mqtt_waveform_publishing`、`memory_stable`、`gc_stable` 等。验证目标状态是否达成，未达成时记录失败但不终止测试（除非配置为 fatal）。
+_Avoid_: 断言点、验证点
+
+**测试阶段 (Test Phase)**：
+- **S 阶段 (Smoke)**：30 秒，单次启停，验证全链路跑通，注入固定时间线异常
+- **M 阶段 (Sustain)**：10 分钟，持续采集，验证内存/GC 稳定性 + MQTT 断连重连，随机区间注入异常
+- **L 阶段 (Soak)**：2 小时以上，高强度随机异常注入，验证句柄稳定性、长期自愈合能力
+_Avoid_: 短期测试、中期测试、长期测试
+
 ## Flagged ambiguities
 
 - "SampleRate" 曾以 Hz 和 kHz 两种单位出现——已解决：配置值存 kHz，CoreBusHeader 存 Hz（×1000），代码已统一

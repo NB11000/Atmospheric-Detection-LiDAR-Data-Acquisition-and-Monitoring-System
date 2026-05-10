@@ -2,7 +2,7 @@
 
 > 双进程高频数据采集与分发系统，通过 MQTT 向远程终端实时推送波形、检测告警与设备状态。
 
-## 项目概述
+## 一.项目概述
 
 本系统驱动 USB1602 采集卡以 **1 MHz 采样率**采集双通道大气激光雷达回波信号，经 LiDAR 反演（能见度 Vis + 折射率结构常数 Cn²）后，通过 **MQTT 三层主题**将波形数据（100 ms/帧）、低频快照（7 s）、检测告警和设备状态实时推送至远程前端。
 
@@ -13,7 +13,11 @@
 | **WebAPI**（主控进程） | ASP.NET Core 8.0，托管 MQTT 客户端、gRPC 服务端、共享内存管理、数据分发服务 | .NET 8 Self-Contained |
 | **ConsoleApp1**（数据采集子进程） | 驱动 USB1602 采集卡，运行 5 线程数据流水线，完成 LiDAR 反演与检测 | .NET 8 Native AOT |
 
-## 快速开始
+## 二.快速开始
+
+### 环境要求
+
+- 安装.NET 8.0
 
 ### 硬件要求
 
@@ -76,7 +80,7 @@ dotnet run
 #   - 等待远程命令（通过 MQTT RPC 或 REST API）
 ```
 
-## 部署指南
+## 三.部署指南
 
 ### 1. 前置依赖
 
@@ -182,7 +186,7 @@ curl http://localhost:5135/api/collector/command/status
 # 订阅 daq/+/waveform/# 查看波形推送
 ```
 
-## 架构说明
+## 四.架构说明
 
 ### 进程拓扑
 
@@ -321,7 +325,7 @@ curl http://localhost:5135/api/collector/command/status
 | 内存屏障 | `MemoryBarrier`（写数据 → 屏障 → 推进 WriteIndex） | 消费者 `Volatile.Read` 配对，保证 happens-before |
 | 时间校准 | `CoreBusHeader.ReferenceTick + ReferenceUtcTicks` | 消费者据此还原绝对 UTC 时间 |
 
-## 项目结构
+## 五.项目结构
 
 ```
 数据采集与检测系统V2.0/
@@ -370,7 +374,7 @@ curl http://localhost:5135/api/collector/command/status
 └── 数据采集与检测系统V2.0.sln         ← 解决方案文件
 ```
 
-## 技术栈
+## 六.技术栈
 
 ### WebAPI（主控进程）
 
@@ -393,7 +397,7 @@ curl http://localhost:5135/api/collector/command/status
 | NetMQ | 4.0.2 | ZeroMQ（保留依赖） |
 | System.IO.Ports | 10.0.5 | 串口通信 |
 
-## MQTT 主题速查
+## 七.MQTT 主题速查
 
 ### 数据上报
 
@@ -429,7 +433,7 @@ curl http://localhost:5135/api/collector/command/status
 | `laser-on` | 开启激光 | `CommandResult` |
 | `laser-off` | 关闭激光 | `CommandResult` |
 
-## 文档索引
+## 八.文档索引
 
 | 文档 | 说明 |
 |------|------|
@@ -442,7 +446,7 @@ curl http://localhost:5135/api/collector/command/status
 | [提交记录/](提交记录/) | 历次提交记录 |
 | [系统优化文档/](系统优化文档/) | 系统优化记录 |
 
-## 项目约定
+## 九.项目约定
 
 - **采集绑定服务的生命周期**由 `AcquisitionLifecycleCoordinator` 统一管理，根据采集状态和 MQTT 连接状态自动启停
 - **采集绑定服务不继承 `BackgroundService`**，而是纯 Singleton，各自管理内部 CTS 和 Dispose
