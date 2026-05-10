@@ -18,6 +18,8 @@ namespace WebAPI.Service
         /// </summary>
         public const string CollectorClientId = "数据采集子进程";
         private readonly ILogger<SystemStateService> _logger;
+        private readonly Lazy<IMqttEventPublisher>? _mqttEventPublisher;
+        private readonly ISignalRHubPublisher? _signalRHubPublisher;
 
         /// <summary>
         /// 采集状态变更事件（true=开始采集，false=停止采集）
@@ -65,6 +67,18 @@ namespace WebAPI.Service
             ILogger<SystemStateService> logger)
         {
             _logger = logger;
+            _mqttEventPublisher = null;
+            _signalRHubPublisher = null;
+        }
+
+        public SystemStateService(
+            ILogger<SystemStateService> logger,
+            Lazy<IMqttEventPublisher> mqttEventPublisher,
+            ISignalRHubPublisher signalRHubPublisher)
+        {
+            _logger = logger;
+            _mqttEventPublisher = mqttEventPublisher;
+            _signalRHubPublisher = signalRHubPublisher;
         }
 
         /// <summary>
@@ -78,15 +92,32 @@ namespace WebAPI.Service
             _mqttConnected = isConnected;
             MqttConnectionStateChanged?.Invoke(isConnected);
             _logger.LogInformation("MQTT 连接状态已更新: {State}", isConnected ? "已连接" : "已断开");
+
+            if (isConnected)
+            {
+                // 恢复：双通道广播 + 快照补偿（MqttEventPublisher 内部嵌入 GetSystemState()）
+                BroadcastAsync("mqtt_connected", "system", "MQTT 连接已恢复", "MQTT 连接已恢复");
+            }
+            else
+            {
+                // 断开：仅 SignalR 广播，MQTT 通道不可用
+                try
+                {
+                    _ = _signalRHubPublisher?.PublishStateChangedAsync(
+                        "mqtt_disconnected", "system", "MQTT 连接已断开", "MQTT 连接已断开");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "SignalR 推送 MQTT 断连事件失败");
+                }
+            }
         }
 
         /// <summary>
-        /// 更新采集卡状态缓存（由 GrpcServiceImpl 在收到消息时调用）
-        /// 使用不可变对象替换模式，确保并发读写安全
-        /// 当 Acquiring 属性值发生变化时触发 AcquiringStateChanged 事件
+        /// 静默更新采集卡状态（仅缓存，不广播）
+        /// 适用场景：MQTT RPC 命令响应成功后，命令响应已携带确认，无需 state_changed 广播
         /// </summary>
-        /// <param name="updater">状态更新函数，接收当前状态副本，返回新状态</param>
-        public void UpdateCollectorState(Func<CollectorStateDto, CollectorStateDto> updater)
+        public void UpdateCollectorStateSilent(Func<CollectorStateDto, CollectorStateDto> updater)
         {
             var current = _cachedCollectorState;
             var oldAcquiring = current.Acquiring;
@@ -104,11 +135,10 @@ namespace WebAPI.Service
         }
 
         /// <summary>
-        /// 更新激光器状态缓存（由 CniLaser 在状态变更时调用）
-        /// 使用不可变对象替换模式，确保并发读写安全
+        /// 静默更新激光器状态（仅缓存，不广播）
+        /// 适用场景：MQTT RPC laser-connect/disconnect/on/off 命令成功后
         /// </summary>
-        /// <param name="updater">状态更新函数，接收当前状态副本，返回新状态</param>
-        public void UpdateLaserState(Func<LaserStateDto, LaserStateDto> updater)
+        public void UpdateLaserStateSilent(Func<LaserStateDto, LaserStateDto> updater)
         {
             var current = _cachedLaserStateDto;
             var newState = updater(current);
@@ -119,10 +149,37 @@ namespace WebAPI.Service
         }
 
         /// <summary>
-        /// 重置采集卡状态缓存为默认值（子进程断开时调用）
-        /// 当 Acquiring 从 true 变为 false 时触发 AcquiringStateChanged 事件
+        /// 广播更新采集卡状态（更新缓存 + 双通道推送 state_changed 事件）
+        /// 适用场景：gRPC 断连、设备异常断开、采集异常终止等非命令链路变更
         /// </summary>
-        public void ResetCollectorState()
+        public void UpdateCollectorStateAndBroadcast(
+            Func<CollectorStateDto, CollectorStateDto> updater,
+            string eventType,
+            string reason)
+        {
+            UpdateCollectorStateSilent(updater);
+            var state = _cachedCollectorState;
+            BroadcastAsync(eventType, "collector", reason, state.LastMessage);
+        }
+
+        /// <summary>
+        /// 广播更新激光器状态（更新缓存 + 双通道推送 state_changed 事件）
+        /// 适用场景：激光器硬件意外断开等非命令链路变更
+        /// </summary>
+        public void UpdateLaserStateAndBroadcast(
+            Func<LaserStateDto, LaserStateDto> updater,
+            string eventType,
+            string reason)
+        {
+            UpdateLaserStateSilent(updater);
+            var state = _cachedLaserStateDto;
+            BroadcastAsync(eventType, "laser", reason, state.LastMessage);
+        }
+
+        /// <summary>
+        /// 重置采集卡状态并广播（路径 [B]）
+        /// </summary>
+        public void ResetCollectorStateAndBroadcast(string reason)
         {
             var oldAcquiring = _cachedCollectorState.Acquiring;
             _cachedCollectorState = new CollectorStateDto
@@ -139,6 +196,29 @@ namespace WebAPI.Service
             if (oldAcquiring)
             {
                 AcquiringStateChanged?.Invoke(false);
+            }
+
+            BroadcastAsync("collector_disconnected", "collector", reason, "采集子进程未连接");
+        }
+
+        private void BroadcastAsync(string eventType, string source, string reason, string message)
+        {
+            try
+            {
+                _ = _mqttEventPublisher?.Value.PublishStateChangedAsync(eventType, source, reason, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "MQTT 推送失败（异步）: {EventType}", eventType);
+            }
+
+            try
+            {
+                _ = _signalRHubPublisher?.PublishStateChangedAsync(eventType, source, reason, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "SignalR 推送失败（异步）: {EventType}", eventType);
             }
         }
 

@@ -141,6 +141,7 @@ namespace WebAPI
             builder.Services.AddSingleton<SystemStateService>();
             // 注册SignalR统一推送服务
             builder.Services.AddSingleton<SignalRHubPublisher>();
+            builder.Services.AddSingleton<ISignalRHubPublisher>(sp => sp.GetRequiredService<SignalRHubPublisher>());
             // ===== MQTT RPC 主通道服务注册 =====
             // 绑定 MQTT 配置选项
             builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
@@ -150,6 +151,7 @@ namespace WebAPI
             builder.Services.Configure<LidarAlgorithmConfig>(ConfigHelper.Config.GetSection("LidarAlgorithm"));
             // MQTT 事件发布器（单例，替代 SignalR 作为主事件推送通道）
             builder.Services.AddSingleton<MqttEventPublisher>();
+            builder.Services.AddSingleton<IMqttEventPublisher>(sp => sp.GetRequiredService<MqttEventPublisher>());
             // 波形发布服务（采集绑定，由 AcquisitionLifecycleCoordinator 驱动启停）
             builder.Services.AddSingleton<WaveformPublishService>();
             builder.Services.AddSingleton<IAcquisitionBoundService>(sp => sp.GetRequiredService<WaveformPublishService>());

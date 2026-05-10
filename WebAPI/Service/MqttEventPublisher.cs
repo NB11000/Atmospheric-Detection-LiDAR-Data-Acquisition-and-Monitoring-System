@@ -14,7 +14,7 @@ namespace WebAPI.Service
     /// 替代 SignalRHubPublisher 作为系统状态变更事件的主推送通道
     /// MQTT 客户端实例由 MqttRpcBackgroundService 在连接建立后注入
     /// </summary>
-    public class MqttEventPublisher
+    public class MqttEventPublisher : IMqttEventPublisher
     {
         private readonly SystemStateService _stateService;
         private readonly IOptionsMonitor<MqttSettings> _mqttSettings;

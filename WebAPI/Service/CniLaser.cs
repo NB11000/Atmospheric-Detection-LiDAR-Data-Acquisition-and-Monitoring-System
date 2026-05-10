@@ -16,8 +16,6 @@ namespace CniLaserControl
         private const int DefaultBaudRate = 9600;
         private ILogger<CniLaser> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly SignalRHubPublisher _hubPublisher;
-        private readonly MqttEventPublisher _mqttEventPublisher;
         private bool _isEmissionOn;
 
 
@@ -36,12 +34,10 @@ namespace CniLaserControl
         /// </summary>
         public string PortName => _serialPort?.PortName ?? string.Empty;
 
-        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider, SignalRHubPublisher signalRHubPublisher, MqttEventPublisher mqttEventPublisher)
+        public CniLaser(ILogger<CniLaser> logger, IServiceProvider serviceProvider)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
-            _hubPublisher = signalRHubPublisher;
-            _mqttEventPublisher = mqttEventPublisher;
         }
 
         /// <summary>
@@ -84,10 +80,7 @@ namespace CniLaserControl
                 
                 // 更新激光器状态缓存
                 UpdateLaserStateCache();
-                
-                // MQTT 主通道：发布连接成功事件（异步不等待）
-                // _ = _mqttEventPublisher.PublishStateChangedAsync("laser_connected", "laser", "激光串口连接成功", "激光器串口已连接");
-                
+
                 return true;
             }
             catch(Exception ex) 
@@ -95,8 +88,6 @@ namespace CniLaserControl
                 _logger.LogError($"打开串口异常：{ex}");
                 // 更新激光器状态缓存（确保状态为未连接）
                 UpdateLaserStateCache();
-                // MQTT 主通道：发布连接失败事件（异步不等待）
-                // _ = _mqttEventPublisher.PublishStateChangedAsync("laser_connection_error", "laser", $"串口连接失败: {ex.Message}", "激光器串口连接失败");
                 return false;
             }
         }
@@ -113,8 +104,6 @@ namespace CniLaserControl
                 _serialPort.Close();
                 // 更新激光器状态缓存
                 UpdateLaserStateCache();
-                // MQTT 主通道：发布断开连接事件（异步不等待）
-                // _ = _mqttEventPublisher.PublishStateChangedAsync("laser_disconnected", "laser", "激光串口主动断开", "激光器串口连接已断开");
             }
             else
             {
@@ -375,7 +364,7 @@ namespace CniLaserControl
             try
             {
                 var stateService = _serviceProvider.GetRequiredService<SystemStateService>();
-                stateService.UpdateLaserState(state => new LaserStateDto
+                stateService.UpdateLaserStateSilent(state => new LaserStateDto
                 {
                     SerialConnected = IsConnected,
                     EmissionOn = IsEmissionOn,
@@ -390,25 +379,6 @@ namespace CniLaserControl
             catch (Exception ex)
             {
                 _logger.LogError(ex, "更新激光器状态缓存失败");
-            }
-        }
-
-        /// <summary>
-        /// 异步发布激光器状态变更事件
-        /// </summary>
-        private async Task PublishLaserStateChangedAsync(string eventType, string reason, string message)
-        {
-            try
-            {
-                await _hubPublisher.PublishStateChangedAsync(
-                    eventType,
-                    "laser",
-                    reason,
-                    message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "发布激光器状态变更事件失败");
             }
         }
 

@@ -29,8 +29,8 @@ CniLaser（路径B覆盖：完全缺失）
     ├── MQTT 推送：全部被注释掉 ✗
     └── SignalR 推送：仅 PublishLaserStateChangedAsync
 
-SystemStateService（路径B覆盖：MQTT断连无广播）
-    └── 仅触发内部事件，不对外广播
+SystemStateService（路径B覆盖：MQTT断连无广播 → 本次改造解决）
+    └── UpdateMqttConnectionState 仅触发内部事件，不对外广播 MQTT/SignalR
 
 DetectionPublisherService（路径B覆盖：告警与状态割裂）
     └── 告警 → detection/alerts ✓  但 → state_changed ✗
@@ -107,31 +107,32 @@ CniLaser                    GrpcServiceImpl
       (仅更新缓存，不广播 —— 命令响应已携带确认)
 
 
-路径 [B] — GrpcServiceImpl / CniLaser / DetectionPublisherService（异常事件）
+路径 [B] — GrpcServiceImpl / CniLaser / MqttRpcBackgroundService（异常事件）
 
-  GrpcServiceImpl              CniLaser（硬件事件）
-      │                             │
-      │ gRPC断连/错误上报           │ 串口意外断开
-      │                             │
-      ▼                             ▼
-  ┌─────────────────────────────────────────┐
-  │        SystemStateService               │
-  │                                         │
-  │  [路径A] SilentUpdate:                  │
-  │    UpdateCollectorStateSilent()         │
-  │    UpdateLaserStateSilent()             │
-  │      └── 仅更新缓存                     │
-  │                                         │
-  │  [路径B] BroadcastUpdate:               │
-  │    UpdateCollectorStateAndBroadcast(    │
-  │        updater, eventType, reason)      │
-  │    UpdateLaserStateAndBroadcast(        │
-  │        updater, eventType, reason)      │
-  │      ├── 更新缓存                       │
-  │      ├── 比较新旧差异，生成事件描述      │
-  │      ├── → MqttEventPublisher           │
-  │      └── → SignalRHubPublisher          │
-  └─────────────────────────────────────────┘
+  GrpcServiceImpl              CniLaser（硬件事件）       MqttRpcBackgroundService
+      │                             │                             │
+      │ gRPC断连/错误上报           │ 串口意外断开                │ MQTT 断连/恢复
+      │                             │                             │
+      ▼                             ▼                             ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                      SystemStateService                          │
+  │                                                                  │
+  │  [路径A] SilentUpdate:                                           │
+  │    UpdateCollectorStateSilent()                                  │
+  │    UpdateLaserStateSilent()                                      │
+  │      └── 仅更新缓存                                              │
+  │                                                                  │
+  │  [路径B] BroadcastUpdate:                                        │
+  │    UpdateCollectorStateAndBroadcast(updater, eventType, reason)  │
+  │    UpdateLaserStateAndBroadcast(updater, eventType, reason)      │
+  │    UpdateMqttConnectionState(bool isConnected)                    │
+  │      ├── 更新缓存 + 内部事件（不变）                             │
+  │      ├── 断开时：SignalR 推送 mqtt_disconnected                  │
+  │      │         + Will Message broker 侧兜底                      │
+  │      ├── 恢复时：MQTT + SignalR 双通道推送 mqtt_connected        │
+  │      │         + 内嵌 GetSystemState() 完整快照补偿              │
+  │      └── _ = fire-and-forget，不阻塞状态更新                     │
+  └──────────────────────────────────────────────────────────────────┘
 ```
 
 ### 3.4 接口变更
@@ -184,6 +185,16 @@ public class SystemStateService
     /// 重置采集卡状态并广播（路径 [B]）
     /// </summary>
     public void ResetCollectorStateAndBroadcast(string reason);
+
+    // === MQTT 连接状态（路径 [B]，内部自动广播）===
+
+    /// <summary>
+    /// 更新 MQTT 连接状态（更新缓存 + 内部事件 + 对外广播）
+    /// 值不变时不触发任何操作（幂等）
+    /// 断开时：SignalR 推送 mqtt_disconnected（MQTT 通道不可用，Will Message 兜底）
+    /// 恢复时：MQTT + SignalR 双通道推送 mqtt_connected + 完整 SystemStateDto 快照补偿
+    /// </summary>
+    public void UpdateMqttConnectionState(bool isConnected);
 
     // === 保留的内部事件（供 AcquisitionLifecycleCoordinator 等内部订阅方使用）===
     public event Action<bool>? AcquiringStateChanged;     // Acquiring 状态变更时触发
@@ -239,7 +250,59 @@ _stateService.UpdateLaserStateAndBroadcast(
     reason: "激光器串口意外断开");
 ```
 
-### 3.5 状态变更事件类型枚举
+**路径 [B] — MqttRpcBackgroundService：MQTT 断连/恢复（自动广播）**
+
+```csharp
+// MqttRpcBackgroundService.ConnectAsync — MQTT 重连成功（非命令链路）
+// 调用方只需更新状态，广播由 SystemStateService 内部完成
+_systemStateService.UpdateMqttConnectionState(true);
+// 内部自动：
+//   → MqttConnectionStateChanged?.Invoke(true)
+//   → MqttEventPublisher.PublishStateChangedAsync("mqtt_connected", ...) // + 完整快照补偿
+//   → SignalRHubPublisher.PublishStateChangedAsync("mqtt_connected", ...)
+
+// MqttRpcBackgroundService.OnDisconnectedAsync — MQTT 断开（非命令链路）
+_systemStateService.UpdateMqttConnectionState(false);
+// 内部自动：
+//   → MqttConnectionStateChanged?.Invoke(false)
+//   → SignalRHubPublisher.PublishStateChangedAsync("mqtt_disconnected", ...)
+//   MQTT 通道不可用，跳过；Will Message broker 侧兜底
+```
+
+### 3.5 MQTT 恢复快照补偿
+
+`UpdateMqttConnectionState(true)` 内部调用 `GetSystemState()` 获取当前完整状态快照，嵌入 `MqttStateChangedEvent.State` 字段一并推送。远端收到 `mqtt_connected` 事件后，可直接从 `State` 字段校准全部设备状态，无需额外请求。
+
+```
+时间线：
+  T1: MQTT 断开
+  T2: 设备异常断开 (路径 [B] 事件，但 MQTT 不通，推送被跳过)
+  T3: MQTT 恢复连接
+  T4: UpdateMqttConnectionState(true)
+        → PublishStateChangedAsync("mqtt_connected", State=<T4 时刻完整快照>)
+        → 远端从快照中获知：设备已断开、采集已停止...
+```
+
+### 3.6 循环依赖处理
+
+`MqttEventPublisher` 构造函数已依赖 `SystemStateService`（调用 `GetSystemState()` 嵌入快照）。`SystemStateService` 新增对 `MqttEventPublisher` 的依赖会形成循环：
+
+```
+SystemStateService → MqttEventPublisher → SystemStateService
+```
+
+解决方案：`SystemStateService` 通过 `Lazy<MqttEventPublisher>` 注入，.NET DI 原生支持，构造函数签名：
+
+```csharp
+public SystemStateService(
+    ILogger<SystemStateService> logger,
+    Lazy<MqttEventPublisher> mqttEventPublisher,
+    SignalRHubPublisher signalRHubPublisher)
+```
+
+`Lazy<T>` 语义清晰："需要时再取"，不影响 DI 容器解析顺序。`SignalRHubPublisher` 不依赖 `SystemStateService`，无循环问题，直接注入。
+
+### 3.7 状态变更事件类型枚举
 
 统一的事件类型定义，取代当前分散的字符串：
 
@@ -334,6 +397,8 @@ public static class StateChangeEvents
 | `SystemStateService` 持有发布器引用增加耦合 | 低 | 低 | 通过 DI 注入接口/抽象，测试中可替换为 mock |
 | MQTT 推送失败影响状态更新 | 低 | 中 | 推送使用 try/catch + `_ =`（fire-and-forget），不阻塞状态更新 |
 | `MqttEventPublisher.MqttClient` 可能为 null | 低 | 低 | `MqttEventPublisher` 内部已有 null 检查和跳过逻辑 |
+| `SystemStateService` ↔ `MqttEventPublisher` 循环依赖 | 中 | 中 | `SystemStateService` 通过 `Lazy<MqttEventPublisher>` 注入，.NET DI 原生支持打破构造循环 |
+| MQTT 断开时 `UpdateMqttConnectionState(false)` 调 MQTT 推送必然失败 | 高 | 低 | 断开时仅走 SignalR；MQTT 推送内部 `IsConnected` 检查自动跳过 |
 
 ---
 
@@ -341,17 +406,19 @@ public static class StateChangeEvents
 
 ### 第一阶段：修改 SystemStateService
 
-1. 在构造函数中注入 `MqttEventPublisher` 和 `SignalRHubPublisher`
+1. 构造函数注入 `Lazy<MqttEventPublisher>`（打破循环依赖）和 `SignalRHubPublisher`
 2. 新增 `UpdateCollectorStateSilent` / `UpdateLaserStateSilent`（直接调用现有 volatile 更新逻辑）
 3. 新增 `UpdateCollectorStateAndBroadcast` / `UpdateLaserStateAndBroadcast` / `ResetCollectorStateAndBroadcast`（更新 + 自动双通道广播）
-4. 新增 `StateChangeEvents` 常量类
-5. 保留现有 `UpdateCollectorState` / `UpdateLaserState` / `ResetCollectorState` 作为过渡（标记 `[Obsolete]`），内部委托给 `Silent` 版本
+4. 改造 `UpdateMqttConnectionState`：值不变时跳过；断开时 SignalR 推送；恢复时 MQTT + SignalR 双通道推送 + `GetSystemState()` 完整快照补偿
+5. 新增 `StateChangeEvents` 常量类
+6. 保留现有 `UpdateCollectorState` / `UpdateLaserState` / `ResetCollectorState` 作为过渡（标记 `[Obsolete]`），内部委托给 `Silent` 版本
 
 ### 第二阶段：分流调用方
 
 1. **GrpcServiceImpl**：gRPC 连接/断开/错误 → `AndBroadcast`；命令响应（`UpdateStateFromCommandResponse`）→ `Silent`
 2. **CollectorHandler / LaserHandler**：命令成功 → `Silent`
 3. **CniLaser**：MQTT RPC 调用的主动操作 → `Silent`；新增硬件事件检测 → `AndBroadcast`
+4. **MqttRpcBackgroundService**：无需改动（`ConnectAsync` / `OnDisconnectedAsync` 已调 `UpdateMqttConnectionState`，广播逻辑内置于方法中）
 
 ### 第三阶段：清理
 
@@ -365,11 +432,15 @@ public static class StateChangeEvents
 
 **文档信息**
 - 创建时间：2026-05-10
+- 更新记录：
+  - v2.0（2026-05-10）：根据"强乐观 UI + 命令链路正确性"架构约定重写，区分路径 [A] 和路径 [B]
+  - v2.1（2026-05-10）：补充 MQTT 断连/恢复补偿通知机制（空白 4），增加断开分层处理（SignalR + Will Message）、恢复快照补偿、`Lazy<T>` 循环依赖解决方案
 - 相关文件：
   - `WebAPI/Service/SystemStateService.cs`
   - `WebAPI/Service/GrpcServiceImpl.cs`
   - `WebAPI/Service/CniLaser.cs`
   - `WebAPI/Service/MqttEventPublisher.cs`
   - `WebAPI/Service/SignalRHubPublisher.cs`
+  - `WebAPI/Service/MqttRpcBackgroundService.cs`
   - `WebAPI/Program.cs`
 - 状态：方案确认，待实施

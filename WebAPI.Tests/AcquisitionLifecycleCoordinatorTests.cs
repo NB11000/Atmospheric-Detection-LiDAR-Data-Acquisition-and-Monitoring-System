@@ -30,7 +30,7 @@ public class AcquisitionLifecycleCoordinatorTests
         var coordinator = new AcquisitionLifecycleCoordinator(
             new[] { spy }, systemState, NullLogger<AcquisitionLifecycleCoordinator>.Instance);
 
-        systemState.UpdateCollectorState(s =>
+        systemState.UpdateCollectorStateSilent(s =>
         {
             s.Acquiring = true;
             return s;
@@ -48,7 +48,7 @@ public class AcquisitionLifecycleCoordinatorTests
         var coordinator = new AcquisitionLifecycleCoordinator(
             new[] { spy }, systemState, NullLogger<AcquisitionLifecycleCoordinator>.Instance);
 
-        systemState.UpdateCollectorState(s =>
+        systemState.UpdateCollectorStateSilent(s =>
         {
             s.Acquiring = true;
             return s;
@@ -67,7 +67,7 @@ public class AcquisitionLifecycleCoordinatorTests
             new[] { spy }, systemState, NullLogger<AcquisitionLifecycleCoordinator>.Instance);
 
         // 先开始采集（MQTT 未连接 → MqttService 停止）
-        systemState.UpdateCollectorState(s => { s.Acquiring = true; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = true; return s; });
         Assert.Equal(0, spy.StartCount);
         Assert.Equal(1, spy.StopCount);
 
@@ -90,13 +90,13 @@ public class AcquisitionLifecycleCoordinatorTests
 
         // 采集开始 + MQTT 连接 → 两个都启动
         systemState.UpdateMqttConnectionState(true);
-        systemState.UpdateCollectorState(s => { s.Acquiring = true; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = true; return s; });
 
         Assert.Equal(1, spyNoMqtt.StartCount);
         Assert.Equal(1, spyMqtt.StartCount);
 
         // 采集停止 → 两个都停
-        systemState.UpdateCollectorState(s => { s.Acquiring = false; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = false; return s; });
 
         // 初始状态(采集未开始+MQTT未连接)调过一次 Stop，停止时再调一次 = 2
         Assert.Equal(2, spyNoMqtt.StopCount);
@@ -114,7 +114,7 @@ public class AcquisitionLifecycleCoordinatorTests
             NullLogger<AcquisitionLifecycleCoordinator>.Instance);
 
         // 采集开始（无 MQTT）→ 仅 non-MQTT 启动
-        systemState.UpdateCollectorState(s => { s.Acquiring = true; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = true; return s; });
         Assert.Equal(1, spyNoMqtt.StartCount);
         Assert.Equal(0, spyMqtt.StartCount);
 
@@ -138,11 +138,11 @@ public class AcquisitionLifecycleCoordinatorTests
             new[] { spy }, systemState, NullLogger<AcquisitionLifecycleCoordinator>.Instance);
 
         // 第一次启动
-        systemState.UpdateCollectorState(s => { s.Acquiring = true; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = true; return s; });
         Assert.Equal(1, spy.StartCount);
 
         // 重复触发 Acquiring=true（不应再调 Start）
-        systemState.UpdateCollectorState(s => { s.Acquiring = true; return s; });
+        systemState.UpdateCollectorStateSilent(s => { s.Acquiring = true; return s; });
 
         Assert.Equal(1, spy.StartCount);
     }

@@ -11,7 +11,7 @@ namespace WebAPI.Service
     /// SignalR 统一推送服务
     /// 职责：封装所有 SignalR 消息推送逻辑
     /// </summary>
-    public class SignalRHubPublisher
+    public class SignalRHubPublisher : ISignalRHubPublisher
     {
         private readonly IHubContext<SystemStateHub> _hubContext;
         private readonly SystemStateService _stateService;

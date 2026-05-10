@@ -64,29 +64,16 @@ namespace WebAPI.Service
         private readonly SystemStateService _stateService;
 
         /// <summary>
-        /// SignalR统一推送服务实例（用于推送消息到前端，保留作为兼容过渡通道）
-        /// </summary>
-        private readonly SignalRHubPublisher _hubPublisher;
-
-        /// <summary>
-        /// MQTT 事件发布器，替代 SignalR 作为主事件推送通道
-        /// </summary>
-        private readonly MqttEventPublisher _mqttEventPublisher;
-
-        /// <summary>
         /// 检测发布服务，接收结构化检测告警并发布到 MQTT
         /// </summary>
         private readonly DetectionPublisherService _detectionPublisher;
 
         public GrpcServiceImpl(ILogger<GrpcServiceImpl> logger, IServiceProvider serviceProvider,
-        SystemStateService stateService, SignalRHubPublisher hubPublisher, MqttEventPublisher mqttEventPublisher,
-        DetectionPublisherService detectionPublisher)
+        SystemStateService stateService, DetectionPublisherService detectionPublisher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _stateService = stateService;
-            _hubPublisher = hubPublisher;
-            _mqttEventPublisher = mqttEventPublisher;
             _detectionPublisher = detectionPublisher;
         }
 
@@ -125,22 +112,17 @@ namespace WebAPI.Service
                         {
                             try
                             {
-                                // 初始化缓存：标记进程已连接，硬件状态待后续命令响应填充
-                                _stateService.UpdateCollectorState(_ => new CollectorStateDto
-                                {
-                                    ProcessConnected = true,
-                                    DeviceOpened = false,
-                                    Acquiring = false,
-                                    Handle = 0,
-                                    LastMessage = "采集子进程已连接，等待设备操作"
-                                });
-
-                                // MQTT 主通道：推送采集子进程连接事件（异步不等待）
-                                _ = _mqttEventPublisher.PublishStateChangedAsync(
-                                    "collector_connected",
-                                    "collector",
-                                    "采集子进程已连接",
-                                    "数据采集子进程连接已建立");
+                                _stateService.UpdateCollectorStateAndBroadcast(
+                                    _ => new CollectorStateDto
+                                    {
+                                        ProcessConnected = true,
+                                        DeviceOpened = false,
+                                        Acquiring = false,
+                                        Handle = 0,
+                                        LastMessage = "采集子进程已连接，等待设备操作"
+                                    },
+                                    StateChangeEvents.CollectorConnected,
+                                    "采集子进程 gRPC 连接已建立");
                             }
                             catch (Exception ex)
                             {
@@ -168,44 +150,16 @@ namespace WebAPI.Service
                         {
                             UpdateStateFromDataReport(clientMsg);
                         }
-
-                        // 服务端上传 发布状态变更事件
-/*                         await _hubPublisher.PublishStateChangedAsync(
-                            clientMsg.MessageType,
-                            "collector",
-                            "数据上报",
-                            clientMsg.Content); */
                     }
                     // 消息类型2：错误消息（客户端的主动上报的错误消息）
                     else if (clientMsg.MessageType == "Error")
                     {
                         _logger.LogError($"收到[{processId}]错误消息：{clientMsg.Content}");
 
-                        // ===== 新增：根据错误码更新采集卡状态 =====
                         if (processId == SystemStateService.CollectorClientId)
                         {
                             UpdateStateFromError(clientMsg);
                         }
-                        // UI交互仅通过Dispatcher异步投递，避免阻塞通信线程
-/*                         Dispatcher.UIThread.Post(() =>
-                        {
-                            _vm.Status = $"收到[{processId}]错误消息：{clientMsg.Content}";
-                        }); */
-
-                        // MQTT 主通道：推送错误事件（异步不等待，SignalR 保留作为兼容通道）
-                        _ = _mqttEventPublisher.PublishStateChangedAsync(
-                            clientMsg.MessageType,
-                            "collector",
-                            "数据采集子进程主动上报的错误消息",
-                            clientMsg.Content);
-
-                        // SignalR 兼容通道：发布状态变更事件
-                        await _hubPublisher.PublishStateChangedAsync(
-                            clientMsg.MessageType,
-                            "collector",
-                            "数据采集子进程主动上报的错误消息",
-                            clientMsg.Content); 
-
                     }
                     // 消息类型3：检测告警（Detection 线程的结构化告警上报）
                     else if (clientMsg.MessageType == "Detection")
@@ -262,8 +216,8 @@ namespace WebAPI.Service
                     _clientStreams.TryRemove(processId, out _);
                     _logger.LogInformation($"客户端[{processId}]已断开");
 
-                    // 如果是采集子进程断开，发布状态变更事件（异步不等待）
-                    _ = PublishCollectorDisconnectedAsync(processId);
+                    // 如果是采集子进程断开，发布状态变更事件
+                    PublishCollectorDisconnectedAsync(processId);
                 }
             }
         }
@@ -355,33 +309,11 @@ namespace WebAPI.Service
         /// <summary>
         /// 异步发布采集子进程断开事件（不等待）
         /// </summary>
-        private async Task PublishCollectorDisconnectedAsync(string processId)
+        private void PublishCollectorDisconnectedAsync(string processId)
         {
             if (processId == SystemStateService.CollectorClientId)
             {
-                try
-                {
-                    // 重置缓存为默认值（兜底保障）
-                    _stateService.ResetCollectorState();
-
-                    // MQTT 主通道：推送采集子进程断开事件（异步不等待）
-                    _ = _mqttEventPublisher.PublishStateChangedAsync(
-                        "collector_disconnected",
-                        "collector",
-                        "采集子进程已断开",
-                        "数据采集子进程连接已断开");
-
-                    // SignalR 兼容通道
-                    await _hubPublisher.PublishStateChangedAsync(
-                        "collector_disconnected",
-                        "collector",
-                        "采集子进程已断开",
-                        "数据采集子进程连接已断开");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "发布采集子进程断开事件失败");
-                }
+                _stateService.ResetCollectorStateAndBroadcast("采集子进程 gRPC 连接已断开");
             }
         }
 
@@ -398,7 +330,7 @@ namespace WebAPI.Service
                 // 如果命令处理失败，不更新硬件状态，仅记录错误信息
                 if (response.ErrorCode == "COMMAND_HANDLE_FAILED")
                 {
-                    _stateService.UpdateCollectorState(current => new CollectorStateDto
+                    _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                     {
                         ProcessConnected = current.ProcessConnected,
                         DeviceOpened = current.DeviceOpened,
@@ -413,7 +345,7 @@ namespace WebAPI.Service
                 {
                     case "OPEN_DEVICE":
                     case "OPEN_DEVICE_AGAIN":
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = response.MHandle > 0,
@@ -424,7 +356,7 @@ namespace WebAPI.Service
                         break;
 
                     case "CLOSE_DEVICE":
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = false,
@@ -435,7 +367,7 @@ namespace WebAPI.Service
                         break;
 
                     case "START_AD":
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = current.DeviceOpened,
@@ -446,7 +378,7 @@ namespace WebAPI.Service
                         break;
 
                     case "STOP_AD":
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = current.DeviceOpened,
@@ -457,7 +389,14 @@ namespace WebAPI.Service
                         break;
 
                     case "EXIT":
-                        _stateService.ResetCollectorState();
+                        _stateService.UpdateCollectorStateSilent(_ => new CollectorStateDto
+                        {
+                            ProcessConnected = false,
+                            DeviceOpened = false,
+                            Acquiring = false,
+                            Handle = 0,
+                            LastMessage = "采集子进程未连接"
+                        });
                         break;
 
                     // CONFIG_UPDATE、CONFIG_READ、PING、GET_COLLECTOR_STATE 等不影响硬件状态
@@ -491,7 +430,7 @@ namespace WebAPI.Service
                 else
                 {
                     // 普通消息：仅更新 LastMessage
-                    _stateService.UpdateCollectorState(current => new CollectorStateDto
+                    _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                     {
                         ProcessConnected = current.ProcessConnected,
                         DeviceOpened = current.DeviceOpened,
@@ -519,44 +458,44 @@ namespace WebAPI.Service
                 switch (errorCode)
                 {
                     case "DEVICE_DISCONNECTED":
-                        // 设备意外断开，全部硬件状态重置
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        // 设备意外断开，全部硬件状态重置 + 双通道广播
+                        _stateService.UpdateCollectorStateAndBroadcast(current => new CollectorStateDto
                         {
                             ProcessConnected = true, // 子进程本身还在
                             DeviceOpened = false,
                             Acquiring = false,
                             Handle = 0,
                             LastMessage = $"设备异常断开：{errorMsg.Content}"
-                        });
+                        }, StateChangeEvents.DeviceDisconnected, $"设备异常断开：{errorMsg.Content}");
                         break;
 
                     case "ACQUISITION_FAILED":
-                        // 采集异常终止
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        // 采集异常终止 + 双通道广播
+                        _stateService.UpdateCollectorStateAndBroadcast(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = current.DeviceOpened,
                             Acquiring = false,
                             Handle = current.Handle,
                             LastMessage = $"采集异常终止：{errorMsg.Content}"
-                        });
+                        }, StateChangeEvents.AcquisitionFailed, $"采集异常终止：{errorMsg.Content}");
                         break;
 
                     case "DEVICE_OPEN_FAILED":
-                        // 设备打开失败
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        // 设备打开失败 + 双通道广播
+                        _stateService.UpdateCollectorStateAndBroadcast(current => new CollectorStateDto
                         {
                             ProcessConnected = true,
                             DeviceOpened = false,
                             Acquiring = false,
                             Handle = 0,
                             LastMessage = $"设备打开失败：{errorMsg.Content}"
-                        });
+                        }, StateChangeEvents.DeviceOpenFailed, $"设备打开失败：{errorMsg.Content}");
                         break;
 
                     default:
-                        // 一般性错误或未分类错误，仅更新 LastMessage
-                        _stateService.UpdateCollectorState(current => new CollectorStateDto
+                        // 一般性错误或未分类错误，仅更新 LastMessage（静默）
+                        _stateService.UpdateCollectorStateSilent(current => new CollectorStateDto
                         {
                             ProcessConnected = current.ProcessConnected,
                             DeviceOpened = current.DeviceOpened,
