@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebAPI.Models;
+using SharedModels;
 using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service

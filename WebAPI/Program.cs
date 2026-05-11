@@ -16,6 +16,7 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using WebAPI.Tools;
 using WebAPI.Models;
+using SharedModels;
 using WebAPI.Service;
 using WebAPI.Hubs;
 using WebAPISharedMemoryFramework;
@@ -389,6 +390,7 @@ namespace WebAPI
                     await context.Response.WriteAsync("此端点仅支持WebSocket连接");
                 }
             });
+
 
 
             

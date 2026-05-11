@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
 using WebAPI.Models;
+using SharedModels;
 using WebAPI.Tools;
 
 namespace WebAPI.Service

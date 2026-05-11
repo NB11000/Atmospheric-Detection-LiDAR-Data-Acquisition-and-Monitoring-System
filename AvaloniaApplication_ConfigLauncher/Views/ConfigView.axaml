@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication_ConfigLauncher.ViewModels"
+             x:Class="AvaloniaApplication_ConfigLauncher.Views.ConfigView"
+             x:DataType="vm:ConfigViewModel">
+
+  <Grid>
+    <!-- ── Mode A: First-run configuration form ─────────────── -->
+    <ScrollViewer IsVisible="{Binding IsModeA}">
+    <StackPanel Margin="10" Spacing="8">
+
+      <!-- Broker 主机 -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="Broker 主机:" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding BrokerHost}" Watermark="mqtt.example.com"/>
+      </Grid>
+
+      <!-- Broker 端口 -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="Broker 端口:" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding BrokerPortText}" Watermark="8883"/>
+      </Grid>
+
+      <!-- 机器标识 -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="机器标识:" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding MachineId}"/>
+      </Grid>
+
+      <!-- 用户名 -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="用户名:" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding Username}" Watermark="EMQX Serverless 认证用户名"/>
+      </Grid>
+
+      <!-- 密码 -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="密码:" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding Password}" PasswordChar="*"/>
+      </Grid>
+
+      <!-- 启用 TLS -->
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="启用 TLS:" VerticalAlignment="Center"/>
+        <CheckBox Grid.Column="1" IsChecked="{Binding UseTls}" Content="使用 TLS/SSL 加密连接（端口 8883 必须启用）"/>
+      </Grid>
+
+      <!-- ── 高级设置 Expander ── -->
+      <Expander Header="高级设置" IsExpanded="{Binding IsAdvancedExpanded}" Margin="0,8,0,0">
+        <StackPanel Spacing="8" Margin="0,8,0,0">
+
+          <!-- 允许不受信任证书 -->
+          <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="允许不受信任证书:" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" IsChecked="{Binding AllowUntrustedCertificates}" Content="允许自签名/不受信任的 SSL 证书（仅开发环境）"/>
+          </Grid>
+
+          <!-- CA 证书路径 -->
+          <Grid ColumnDefinitions="120,*,Auto" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="CA 证书路径:" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding CaCertificatePath}" Watermark="证书文件路径 (.crt/.pem/.cer)" IsReadOnly="False"/>
+            <Button Grid.Column="2" Content="选择文件" Margin="5,0,0,0" Click="SelectCaFile_Click"/>
+          </Grid>
+
+          <!-- RPC 超时 -->
+          <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="RPC 超时(秒):" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding RpcTimeoutSecondsText}" Watermark="60"/>
+          </Grid>
+
+          <!-- 重连间隔 -->
+          <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="重连间隔(秒):" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding ReconnectDelaySecondsText}" Watermark="5"/>
+          </Grid>
+
+          <!-- 波形发布间隔 -->
+          <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="波形发布间隔(ms):" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding WaveformPublishIntervalMsText}" Watermark="100"/>
+          </Grid>
+
+        </StackPanel>
+      </Expander>
+
+      <!-- Buttons -->
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" Margin="0,10,0,0">
+        <Button Content="保存并启动" IsEnabled="{Binding IsSaveEnabled}" Click="SaveAndStart_Click"/>
+        <Button Content="退出" Command="{Binding ExitCommand}"/>
+      </StackPanel>
+
+      <!-- Status message -->
+      <TextBlock Text="{Binding StatusMessage}" Foreground="Green" Margin="0,5,0,0"/>
+
+    </StackPanel>
+  </ScrollViewer>
+
+  <!-- ── Mode B: Existing config summary ──────────────────── -->
+  <ScrollViewer IsVisible="{Binding IsModeB}">
+    <StackPanel Margin="10" Spacing="10">
+
+      <TextBlock Text="已有配置摘要" FontSize="16" FontWeight="Bold" Margin="0,0,0,5"/>
+
+      <!-- Summary fields -->
+      <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Broker 地址:" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SummaryBrokerDisplay}"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="机器标识:" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SummaryMachineId}"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="用户名:" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SummaryUsername}"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="TLS 状态:" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SummaryTlsStatus}"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="WebAPI 地址:" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SummaryBaseUrl}"/>
+      </Grid>
+
+      <!-- Buttons -->
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" Margin="0,5,0,0">
+        <Button Content="使用已有配置启动" Command="{Binding UseExistingAndStartCommand}"/>
+        <Button Content="修改配置" Command="{Binding SwitchToEditCommand}"/>
+        <Button Content="退出" Command="{Binding ExitCommand}"/>
+      </StackPanel>
+
+      <!-- Status message -->
+      <TextBlock Text="{Binding StatusMessage}" Foreground="Green" Margin="0,5,0,0"/>
+
+    </StackPanel>
+    </ScrollViewer>
+  </Grid>
+
+</UserControl>

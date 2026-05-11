@@ -208,7 +208,7 @@ curl http://localhost:5135/api/collector/command/status
 ┌──────▼──────────────────┐
 │ ConsoleApp1 数据采集子进程 │
 │ .NET 8 Native AOT        │
-│ 驱动 USB1602 + 串口激光器  │
+│ 驱动采集卡 + 串口激光器  │
 └──────┬──────────────────┘
        │
        ├── CoreDataBus (MMF, ~96 MB)
@@ -284,7 +284,7 @@ curl http://localhost:5135/api/collector/command/status
 
 | 线程 | 输入 | 输出 | 说明 |
 |------|------|------|------|
-| **ADWork** | USB1602 采集卡 | `Voltage_block`（CH1/CH2 原始电压） | 采样率 1 MHz，双通道 16-bit ADC |
+| **ADWork** | 采集卡 | `Voltage_block`（CH1/CH2 原始电压） | 采样率 1 MHz，双通道 16-bit ADC |
 | **ADDraw** | `Voltage_block` | `Voltage_block`（分流至 Analysis + UI，同引用免拷贝） | 预处理占位（数据校验、帧同步） |
 | **Analysis** | `Voltage_block`（来自 ADDraw） | `StructuredSample` → CoreDataBus（逐条）/ DetectionChannel（整批） | LiDAR 反演（Vis + Cn²），暗电流扣除，距离平方校正，增益均衡 |
 | **Detection** | `DetectionBatch`（Channel） | 检测告警 → gRPC → 主控进程 | 信号遮挡 / 工况异常 / 跳变检测 |

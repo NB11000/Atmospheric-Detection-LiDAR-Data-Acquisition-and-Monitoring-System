@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading.Tasks;
 using WebAPI.Service;
@@ -13,10 +14,14 @@ namespace WebAPI.Controllers
     public class SystemStateController : ControllerBase
     {
         private readonly SystemStateService _systemStateService;
+        private readonly IHostApplicationLifetime _lifetime;
 
-        public SystemStateController(SystemStateService systemStateService)
+        public SystemStateController(
+            SystemStateService systemStateService,
+            IHostApplicationLifetime lifetime)
         {
             _systemStateService = systemStateService;
+            _lifetime = lifetime;
         }
 
         /// <summary>
@@ -34,6 +39,16 @@ namespace WebAPI.Controllers
             {
                 return StatusCode(500, $"内部服务器错误：{ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 关闭 WebAPI 服务进程（Issue 03 新增）
+        /// </summary>
+        [HttpPost("shutdown")]
+        public IActionResult Shutdown()
+        {
+            _lifetime.StopApplication();
+            return Ok();
         }
     }
 }

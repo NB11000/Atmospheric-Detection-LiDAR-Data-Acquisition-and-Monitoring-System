@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
 using WebAPI.Models;
+using SharedModels;
 
 namespace WebAPI.Service
 {

@@ -56,6 +56,14 @@ _Avoid_: Web 服务、API 进程
 **数据采集子进程 (Acquisition Subprocess)**：
 ConsoleApp1，直接驱动 USB1602 采集卡，运行 5 条线程（ADWork / ADDraw / Analysis / Detection / UI），通过 gRPC 双向流与主控进程通信。
 
+**配置启动器 (Config Launcher)**：
+AvaloniaApplication_ConfigLauncher，跨平台桌面应用，封装 MQTT 配置 GUI 和本地控制面板。用户通过它填写 MQTT 凭据、写入 appsettings.json、拉起 WebAPI 进程、并通过 HTTP API 本地操控采集卡和激光器。非架构核心路径——主控进程可脱离启动器独立运行。
+_Avoid_: MQTT 启动器、桌面启动器
+
+**本地控制面板 (Local Control Panel)**：
+配置启动器内的控制分页，通过 WebAPI 的 HTTP 接口（api/collector、api/laser、api/system/state）下发指令并查看状态快照，手动刷新。用于远程前端（MQTT 通道）失效时的备用本地控制。
+_Avoid_: 本地控制台、本地操作面板
+
 **持久化 (Persistence)**：
 从 CoreDataBus 按配置周期（1s / 5s / 30s / 1min / 5min）读取**单条**最新结构化采样点，写入 CSV。本质是周期性快照抽样，非全量归档。
 _Avoid_: 存档、落盘
@@ -65,6 +73,12 @@ _Avoid_: 存档、落盘
 **采集绑定服务 (Acquisition-Bound Service)**：
 运行生命周期与采集状态绑定的消费者——采集开始时启动内部循环，采集停止时停止。当前包括波形发布、低频发布、持久化三类，由采集生命周期协调器统一启停。
 _Avoid_: 后台服务、托管服务
+
+### MQTT 连接
+
+**客户端ID (ClientID)**：
+MQTT Broker 唯一标识一个连接的字符串，与 `MachineId` 相同（appsettings.json → Mqtt.MachineId）。同一时刻同一 Broker 上 ClientID 必须唯一，重复连接会导致旧连接被 Broker 踢除。生产多机部署时每台设备需分配不同 MachineId。
+_Avoid_: 客户端标识、设备ID
 
 **采集生命周期协调器 (Acquisition Lifecycle Coordinator)**：
 订阅采集状态变化和 MQTT 连接状态变化两个事件，根据各采集绑定服务声明的前置条件（`RequiresMqttConnection`）决定启动或停止。每一个采集绑定服务的启动条件：`CanRun = Acquiring && (!RequiresMqtt || MqttConnected)`。
@@ -106,6 +120,8 @@ _Avoid_: 错误消息、Error 事件
 10. **CoreDataBus 与 UISharedBuffer 完全物理隔离**：不同 MMF 文件，不同数据源，不同消费链路
 11. **消费者生命周期由事件驱动，不由信号驱动**：消费者是抽样快照（7s ~ 5min 周期），非全量消费，跨进程信号唤醒每秒百万次无意义；采集状态和 MQTT 连接状态统一由 SystemStateService 发布，Coordinator 集中判断分发
 12. **采集绑定服务不继承 BackgroundService**：纯 Singleton，Start/Stop 由 Coordinator 调用，各自管理 CTS 和 Dispose，避免 ExecuteAsync 空实现的语义误导
+13. **配置启动器与主控进程物理分离**：启动器写入 appsettings.json 后通过 Process.Start 拉起 WebAPI，二者仅通过 HTTP（api/* + /api/system/state）通信。启动器不直接依赖 MQTT、CoreDataBus 等主控进程内部组件。主控进程可脱离启动器独立运行。
+14. **本地控制面板使用手动刷新而非自动轮询**：避免本地 HTTP 轮询引入的持久后台线程开销。状态快照仅在用户主动触发时请求，后续版本可优化为事件驱动。
 
 ## Example dialogue
 

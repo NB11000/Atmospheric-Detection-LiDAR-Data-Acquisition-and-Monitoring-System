@@ -1,0 +1,152 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication_ConfigLauncher.ViewModels"
+             xmlns:sm="using:SharedModels"
+             x:Class="AvaloniaApplication_ConfigLauncher.Views.ControlView"
+             x:DataType="vm:ControlViewModel">
+
+  <ScrollViewer>
+    <StackPanel Margin="10" Spacing="12">
+
+      <!-- ── 卡片 1: 采集卡控制 ──────────────────────────────── -->
+      <Border BorderThickness="1"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+              CornerRadius="4"
+              Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="采集卡控制" FontSize="16" FontWeight="Bold"/>
+
+          <!-- Buttons row -->
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="打开设备" Command="{Binding OpenDeviceCommand}"
+                    MinWidth="80"/>
+            <Button Content="关闭设备" Command="{Binding CloseDeviceCommand}"
+                    MinWidth="80"/>
+            <Button Content="开始采集" Command="{Binding StartAcquisitionCommand}"
+                    MinWidth="80"/>
+            <Button Content="停止采集" Command="{Binding StopAcquisitionCommand}"
+                    MinWidth="80"/>
+          </StackPanel>
+
+          <!-- Last collector result -->
+          <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                  CornerRadius="3" Padding="8">
+            <StackPanel Spacing="4">
+              <TextBlock Text="最近操作结果" FontWeight="SemiBold" FontSize="12"
+                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+              <TextBlock Text="{Binding OpenDeviceResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!OpenDeviceResult}"/>
+              <TextBlock Text="{Binding CloseDeviceResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!CloseDeviceResult}"/>
+              <TextBlock Text="{Binding StartAcqResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!StartAcqResult}"/>
+              <TextBlock Text="{Binding StopAcqResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!StopAcqResult}"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- ── 卡片 2: 激光器控制 ──────────────────────────────── -->
+      <Border BorderThickness="1"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+              CornerRadius="4"
+              Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="激光器控制" FontSize="16" FontWeight="Bold"/>
+
+          <!-- Buttons row -->
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="连接激光器" Command="{Binding LaserConnectCommand}"
+                    MinWidth="90"/>
+            <Button Content="断开激光器" Command="{Binding LaserDisconnectCommand}"
+                    MinWidth="90"/>
+            <Button Content="开激光" Command="{Binding LaserOnCommand}"
+                    MinWidth="70"/>
+            <Button Content="关激光" Command="{Binding LaserOffCommand}"
+                    MinWidth="70"/>
+          </StackPanel>
+
+          <!-- Last laser result -->
+          <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                  CornerRadius="3" Padding="8">
+            <StackPanel Spacing="4">
+              <TextBlock Text="最近操作结果" FontWeight="SemiBold" FontSize="12"
+                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+              <TextBlock Text="{Binding LaserConnectResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!LaserConnectResult}"/>
+              <TextBlock Text="{Binding LaserDisconnectResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!LaserDisconnectResult}"/>
+              <TextBlock Text="{Binding LaserOnResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!LaserOnResult}"/>
+              <TextBlock Text="{Binding LaserOffResult.Message}" FontSize="12"
+                         IsVisible="{Binding !!LaserOffResult}"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- ── 卡片 3: 系统状态 ────────────────────────────────── -->
+      <Border BorderThickness="1"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+              CornerRadius="4"
+              Padding="12">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="系统状态" FontSize="16" FontWeight="Bold"
+                       VerticalAlignment="Center"/>
+            <Button Content="刷新状态" Command="{Binding RefreshStateCommand}"
+                    MinWidth="80" VerticalAlignment="Center"/>
+            <ProgressBar IsIndeterminate="True" Width="120" Height="16"
+                         IsVisible="{Binding IsRefreshing}"
+                         VerticalAlignment="Center"/>
+          </StackPanel>
+
+          <!-- State display grid -->
+          <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                  CornerRadius="3" Padding="8">
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                  RowSpacing="6">
+              <!-- 子进程连接 -->
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="子进程连接:"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         Text="{Binding CurrentState.Collector.ProcessConnected, StringFormat=\{0\}}"
+                         VerticalAlignment="Center"/>
+
+              <!-- 设备状态 -->
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="采集卡设备是否打开:"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         Text="{Binding CurrentState.Collector.DeviceOpened, StringFormat=\{0\}}"
+                         VerticalAlignment="Center"/>
+
+              <!-- 采集状态 -->
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="采集状态:"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="2" Grid.Column="1"
+                         Text="{Binding CurrentState.Collector.Acquiring, StringFormat=\{0\}}"
+                         VerticalAlignment="Center"/>
+
+              <!-- 激光状态 -->
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="激光状态:"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="3" Grid.Column="1"
+                         Text="{Binding CurrentState.Laser.EmissionOn, StringFormat=\{0\}}"
+                         VerticalAlignment="Center"/>
+
+              <!-- 时间戳 -->
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="时间戳:"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="4" Grid.Column="1"
+                         Text="{Binding CurrentState.Timestamp, StringFormat=\{0:yyyy-MM-dd HH:mm:ss\}}"
+                         VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+
+</UserControl>

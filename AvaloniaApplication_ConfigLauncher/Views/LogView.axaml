@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication_ConfigLauncher.ViewModels"
+             x:Class="AvaloniaApplication_ConfigLauncher.Views.LogView"
+             x:DataType="vm:LogViewModel">
+
+  <TextBlock Text="{Binding PlaceholderText}"
+             FontSize="18"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center"
+             Foreground="Gray"/>
+
+</UserControl>

@@ -1,4 +1,4 @@
-namespace WebAPI.Models
+namespace SharedModels
 {
     /// <summary>
     /// MQTT 连接与 RPC 配置选项
