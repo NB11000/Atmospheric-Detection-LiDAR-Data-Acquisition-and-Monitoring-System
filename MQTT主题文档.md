@@ -387,6 +387,10 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `collector-config-default` | 空 | `CaptureCardConfig` | 获取默认采集卡配置 |
 | `laser-config-read` | 空 | `RadarConfig` | 读取激光雷达配置 |
 | `laser-config-update` | `RadarConfig`（JSON） | `RadarConfig` | 更新激光雷达配置 |
+| `lidar-config-read` | 空 | `LidarAlgorithmConfig` | 读取激光雷达算法配置 |
+| `lidar-config-update` | `LidarAlgorithmConfig`（JSON） | `LidarAlgorithmConfig` | 更新激光雷达算法配置 |
+| `persistence-config-read` | 空 | `PersistenceSettings` | 读取数据持久化配置 |
+| `persistence-config-update` | `PersistenceSettings`（JSON） | `PersistenceSettings` | 更新数据持久化配置 |
 
 #### CaptureCardConfig
 
@@ -429,6 +433,50 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `laserModulationFrequency` | `int` | 调制频率 |
 | `serialPort` | `string` | 串口号 |
 | `baudRate` | `int` | 波特率 |
+
+#### LidarAlgorithmConfig
+
+```json
+{
+  "gainEqualizationCoefficient": 1.0,
+  "kConstant": 4.48,
+  "receiverApertureD_m": 0.2,
+  "pathLengthL_m": 1000.0,
+  "cn2WindowFrames": 100,
+  "fernaldBoundaryDistance_m": 3000.0,
+  "laserWavelength_nm": 532.0,
+  "angstromExponent": 1.3,
+  "darkCurrentSampleCount": 0,
+  "sampleRateHz": 20000000.0,
+  "blindZoneDistance_m": 30.0
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `gainEqualizationCoefficient` | `double` | 增益均衡系数 |
+| `kConstant` | `double` | K 常数 |
+| `receiverApertureD_m` | `double` | 接收孔径直径 (m) |
+| `pathLengthL_m` | `double` | 传输路径长度 (m) |
+| `cn2WindowFrames` | `int` | Cn² 计算窗口帧数 |
+| `fernaldBoundaryDistance_m` | `double` | Fernald 边界距离 (m) |
+| `laserWavelength_nm` | `double` | 激光波长 (nm) |
+| `angstromExponent` | `double` | Ångström 指数 |
+| `darkCurrentSampleCount` | `int` | 暗电流采样点数 |
+| `sampleRateHz` | `double` | 采样率 (Hz) |
+| `blindZoneDistance_m` | `double` | 盲区距离 (m) |
+
+#### PersistenceSettings
+
+```json
+{
+  "dataDirectory": "data"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `dataDirectory` | `string` | 数据持久化目录路径 |
 
 ---
 
