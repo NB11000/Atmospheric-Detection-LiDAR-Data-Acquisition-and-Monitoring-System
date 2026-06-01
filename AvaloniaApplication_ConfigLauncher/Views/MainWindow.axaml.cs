@@ -1,15 +1,19 @@
+using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaApplication_ConfigLauncher.ViewModels;
 
 namespace AvaloniaApplication_ConfigLauncher.Views;
 
 public partial class MainWindow : Window
 {
+    private bool _confirmedClose;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -23,58 +27,89 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Issue 04 Part E: When user clicks the window close button,
-    /// check if WebAPI is running and confirm before closing.
-    /// </summary>
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
+        if (_confirmedClose)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
         if (DataContext is not MainWindowViewModel vm)
         {
             base.OnClosing(e);
             return;
         }
 
-        if (!vm.IsWebApiProcessRunning)
+        var isReachable = await vm.IsWebApiHttpReachableAsync();
+        if (!isReachable)
         {
             base.OnClosing(e);
-            return; // No WebAPI running, allow close
+            return;
         }
 
-        // WebAPI is running — confirm with user
         e.Cancel = true;
-        var shouldClose = await ShowCloseConfirmationAsync();
-        if (shouldClose)
+        var result = await ShowCloseDialogAsync(vm);
+
+        switch (result)
         {
-            // Close the window programmatically after confirmation
-            e.Cancel = false;
-            Close();
+            case CloseDialogResult.CloseWithWebApi:
+            case CloseDialogResult.CloseLauncherOnly:
+                _confirmedClose = true;
+                Close();
+                break;
+            case CloseDialogResult.Cancel:
+                break;
         }
 
         base.OnClosing(e);
     }
 
-    private async Task<bool> ShowCloseConfirmationAsync()
+    private async Task<CloseDialogResult> ShowCloseDialogAsync(MainWindowViewModel vm)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<CloseDialogResult>();
+        var alreadyFailed = false;
 
         var textBlock = new TextBlock
         {
-            Text = "关闭启动器不会停止 WebAPI，是否继续？",
+            Text = "WebAPI 正在运行。关闭启动器时是否同时关闭 WebAPI？",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(15, 15, 15, 10)
         };
 
-        var yesButton = new Button
+        var progressBar = new ProgressBar
         {
-            Content = "是",
-            Width = 70,
+            IsIndeterminate = true,
+            Margin = new Thickness(15, 5, 15, 5),
+            IsVisible = false,
+            Height = 20
+        };
+
+        var errorText = new TextBlock
+        {
+            Foreground = Brushes.Red,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(15, 5, 15, 5),
+            IsVisible = false
+        };
+
+        var shutdownBtn = new Button
+        {
+            Content = "关闭 WebAPI",
+            Width = 90,
             Margin = new Thickness(5, 0, 5, 0)
         };
 
-        var noButton = new Button
+        var launcherOnlyBtn = new Button
         {
-            Content = "否",
+            Content = "只关启动器",
+            Width = 90,
+            Margin = new Thickness(5, 0, 5, 0)
+        };
+
+        var cancelBtn = new Button
+        {
+            Content = "取消",
             Width = 70,
             Margin = new Thickness(5, 0, 5, 0)
         };
@@ -84,28 +119,90 @@ public partial class MainWindow : Window
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 5, 0, 15),
-            Children = { yesButton, noButton }
+            Children = { shutdownBtn, launcherOnlyBtn, cancelBtn }
         };
 
         var panel = new StackPanel
         {
-            Children = { textBlock, buttonPanel }
+            Children = { textBlock, errorText, progressBar, buttonPanel }
         };
 
         var dialog = new Window
         {
-            Title = "确认",
-            Width = 380,
-            Height = 140,
+            Title = "关闭启动器",
+            Width = 420,
+            Height = 170,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = panel,
             CanResize = false
         };
 
-        yesButton.Click += (_, _) => { tcs.TrySetResult(true); dialog.Close(); };
-        noButton.Click += (_, _) => { tcs.TrySetResult(false); dialog.Close(); };
+        dialog.Closing += (_, args) =>
+        {
+            if (!tcs.Task.IsCompleted)
+            {
+                args.Cancel = true;
+            }
+        };
+
+        shutdownBtn.Click += async (_, _) =>
+        {
+            if (alreadyFailed)
+            {
+                errorText.Text = "请手动关闭 WebAPI 进程。";
+                errorText.IsVisible = true;
+                return;
+            }
+
+            SetProgressState(textBlock, progressBar, buttonPanel);
+
+            var success = await Task.Run(() => vm.ShutdownWebApiAsync());
+
+            if (success)
+            {
+                tcs.TrySetResult(CloseDialogResult.CloseWithWebApi);
+                dialog.Close();
+            }
+            else
+            {
+                alreadyFailed = true;
+                errorText.Text = "WebAPI 未能在 3 秒内退出。";
+                errorText.IsVisible = true;
+                progressBar.IsVisible = false;
+                textBlock.IsVisible = true;
+                textBlock.Text = "WebAPI 正在运行。关闭启动器时是否同时关闭 WebAPI？";
+                buttonPanel.IsVisible = true;
+            }
+        };
+
+        launcherOnlyBtn.Click += (_, _) =>
+        {
+            tcs.TrySetResult(CloseDialogResult.CloseLauncherOnly);
+            dialog.Close();
+        };
+
+        cancelBtn.Click += (_, _) =>
+        {
+            tcs.TrySetResult(CloseDialogResult.Cancel);
+            dialog.Close();
+        };
 
         await dialog.ShowDialog(this);
         return await tcs.Task;
+    }
+
+    private static void SetProgressState(TextBlock textBlock, ProgressBar progressBar, StackPanel buttonPanel)
+    {
+        textBlock.Text = "正在关闭 WebAPI，请稍候...";
+        textBlock.IsVisible = true;
+        buttonPanel.IsVisible = false;
+        progressBar.IsVisible = true;
+    }
+
+    private enum CloseDialogResult
+    {
+        CloseWithWebApi,
+        CloseLauncherOnly,
+        Cancel
     }
 }

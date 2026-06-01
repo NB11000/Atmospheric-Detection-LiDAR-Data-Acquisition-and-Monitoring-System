@@ -27,6 +27,11 @@ public partial class ConfigViewModel : ViewModelBase
     /// </summary>
     public Func<Task<bool>>? RestartWebApiAsync { get; set; }
 
+    /// <summary>
+    /// Callback to request main window close. Set by MainWindowViewModel.
+    /// </summary>
+    public Action? ExitRequested { get; set; }
+
     // ── Mode flags ──────────────────────────────────────────
 
     [ObservableProperty]
@@ -223,7 +228,7 @@ public partial class ConfigViewModel : ViewModelBase
     [RelayCommand]
     private void Exit()
     {
-        Environment.Exit(0);
+        ExitRequested?.Invoke();
     }
 
     [RelayCommand]

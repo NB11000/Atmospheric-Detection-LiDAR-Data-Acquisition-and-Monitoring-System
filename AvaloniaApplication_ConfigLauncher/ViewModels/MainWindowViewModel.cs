@@ -11,8 +11,9 @@ namespace AvaloniaApplication_ConfigLauncher.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ConfigManager _configManager;
-    private readonly WebApiProcessManager _processManager;
+    private readonly IWebApiProcessManager _processManager;
     private LauncherHttpClient _httpClient;
+    private HttpClient? _reachabilityClient;
 
     // ── Tab ViewModels ──────────────────────────────────────
 
@@ -72,6 +73,14 @@ public partial class MainWindowViewModel : ViewModelBase
         // Issue 04 Part D: Wire up restart flow callbacks
         ConfigVm.ShowRestartConfirmationAsync = ShowRestartConfirmationAsync;
         ConfigVm.RestartWebApiAsync = RestartWebApiAsync;
+        ConfigVm.ExitRequested = () =>
+        {
+            if (Avalonia.Application.Current?.ApplicationLifetime
+                is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.MainWindow?.Close();
+            }
+        };
 
         // Auto-detect: if WebAPI is already running, skip to control tab
         _ = AutoDetectWebApi();
@@ -215,6 +224,51 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             return ready;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    internal MainWindowViewModel(
+        ConfigManager configManager,
+        IWebApiProcessManager processManager,
+        LauncherHttpClient httpClient,
+        HttpClient? reachabilityClient = null)
+    {
+        _configManager = configManager;
+        BaseUrl = configManager.LoadBaseUrl();
+        _processManager = processManager;
+        _httpClient = httpClient;
+        _reachabilityClient = reachabilityClient;
+
+        ControlVm = new ControlViewModel(_httpClient);
+        ConfigVm = new ConfigViewModel(_configManager, _processManager, onReady: () => { });
+    }
+
+    public async Task<bool> ShutdownWebApiAsync()
+    {
+        try
+        {
+            var shutdownOk = await _httpClient.ShutdownWebApi();
+            if (!shutdownOk)
+                return false;
+            return await _processManager.StopAsync(BaseUrl, 3);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> IsWebApiHttpReachableAsync()
+    {
+        try
+        {
+            var client = _reachabilityClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            var response = await client.GetAsync(BaseUrl + "/");
+            return response.IsSuccessStatusCode;
         }
         catch
         {
