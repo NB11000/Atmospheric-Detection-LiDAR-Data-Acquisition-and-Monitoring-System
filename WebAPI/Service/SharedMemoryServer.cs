@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace WebAPISharedMemoryFramework
 {
@@ -201,14 +202,20 @@ namespace WebAPISharedMemoryFramework
     /// </summary>
     public unsafe class CoreDataBus : IDisposable
     {
-        const string MapName = "DAQ_CORE_DATA_BUS";
+        const string DefaultMapName = "DAQ_CORE_DATA_BUS";
 
+        private readonly string _mapName;
         private MemoryMappedFile mmf;
         private MemoryMappedViewAccessor accessor;
         private byte* basePtr;
         private CoreBusHeader* header;
         private StructuredSample* dataPtr;
         private int bufferLength;
+
+        public CoreDataBus(string mapName = DefaultMapName)
+        {
+            _mapName = mapName;
+        }
 
         /// <summary>
         /// 【主进程调用】创建并初始化共享内存
@@ -222,7 +229,7 @@ namespace WebAPISharedMemoryFramework
             long totalSize = headerSize + dataSize;
 
             mmf = MemoryMappedFile.CreateNew(
-                MapName,
+                _mapName,
                 totalSize,
                 MemoryMappedFileAccess.ReadWrite);
 
@@ -248,7 +255,7 @@ namespace WebAPISharedMemoryFramework
         public void Open()
         {
             mmf = MemoryMappedFile.OpenExisting(
-                MapName,
+                _mapName,
                 MemoryMappedFileRights.ReadWrite);
 
             accessor = mmf.CreateViewAccessor();
@@ -257,6 +264,19 @@ namespace WebAPISharedMemoryFramework
             header = (CoreBusHeader*)basePtr;
             dataPtr = (StructuredSample*)(basePtr + sizeof(CoreBusHeader));
             bufferLength = header->BufferLength;
+        }
+
+        /// <summary>
+        /// 【Analysis 线程】逐条流式写入——单写者无锁
+        /// </summary>
+        public void Write(ref StructuredSample sample)
+        {
+            long index = header->WriteIndex;
+            long pos = index % bufferLength;
+            *(dataPtr + pos) = sample;
+
+            Interlocked.MemoryBarrier();
+            header->WriteIndex = index + 1;
         }
 
         /// <summary>
