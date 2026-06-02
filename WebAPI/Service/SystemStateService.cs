@@ -33,6 +33,10 @@ namespace WebAPI.Service
         /// </summary>
         public event Action<bool>? MqttConnectionStateChanged;
 
+
+        /// <summary>
+        /// MQTT 连接状态本地缓存（由 MqttRpcBackgroundService 在断连/重连时更新）
+        /// </summary>
         private volatile bool _mqttConnected;
 
         /// <summary>
@@ -95,8 +99,16 @@ namespace WebAPI.Service
 
             if (isConnected)
             {
-                // 恢复：双通道广播 + 快照补偿（MqttEventPublisher 内部嵌入 GetSystemState()）
-                BroadcastAsync("mqtt_connected", "system", "MQTT 连接已恢复", "MQTT 连接已恢复");
+                // 恢复：仅 SignalR 推送（MQTT 连接状态由 PublishDeviceOnlineAsync 承担；去掉 BroadcastAsync 避免冗余 MQTT state_changed）
+                try
+                {
+                    _ = _signalRHubPublisher?.PublishStateChangedAsync(
+                        "mqtt_connected", "system", "MQTT 连接已恢复", "MQTT 连接已恢复");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "SignalR 推送 MQTT 连接恢复事件失败");
+                }
             }
             else
             {
@@ -237,6 +249,7 @@ namespace WebAPI.Service
                 Server = new ServerStateDto
                 {
                     IsApiAlive = true,
+                    IsMqttConnected = _mqttConnected,
                     Timestamp = DateTime.Now
                 },
                 // 采集卡状态

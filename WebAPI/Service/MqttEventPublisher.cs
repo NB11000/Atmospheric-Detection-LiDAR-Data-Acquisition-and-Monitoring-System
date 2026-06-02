@@ -151,6 +151,69 @@ namespace WebAPI.Service
         }
 
         /// <summary>
+        /// 推送设备上线事件到 MQTT（retained）
+        /// 发布到主题：daq/{machineId}/events/will
+        /// QOS 1 + 保留消息
+        /// </summary>
+        public async Task PublishDeviceOnlineAsync()
+        {
+            await PublishWillPayloadAsync("online", "device_online", "设备已上线", "设备上线");
+        }
+
+        /// <summary>
+        /// 推送设备正常下线事件到 MQTT（retained）
+        /// 发布到主题：daq/{machineId}/events/will
+        /// QOS 1 + 保留消息
+        /// </summary>
+        public async Task PublishDeviceOfflineAsync()
+        {
+            await PublishWillPayloadAsync("offline", "device_offline", "设备正常下线", "设备下线");
+        }
+
+        private async Task PublishWillPayloadAsync(string status, string eventType, string message, string logLabel)
+        {
+            if (MqttClient == null || !MqttClient.IsConnected)
+            {
+                _logger.LogDebug("MQTT 客户端未连接，跳过{Label}事件推送", logLabel);
+                return;
+            }
+
+            try
+            {
+                var now = DateTime.UtcNow;
+                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                var payload = new
+                {
+                    status,
+                    ts = nowMs,
+                    eventType,
+                    source = "device",
+                    message,
+                    timestamp = now
+                };
+
+                var payloadBytes = JsonSerializer.SerializeToUtf8Bytes(payload, _jsonOptions);
+                var topic = $"daq/{_mqttSettings.CurrentValue.MachineId}/events/will";
+
+                var mqttMessage = new MqttApplicationMessageBuilder()
+                    .WithTopic(topic)
+                    .WithPayload(payloadBytes)
+                    .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                    .WithRetainFlag(true)
+                    .Build();
+
+                await MqttClient.PublishAsync(mqttMessage);
+
+                _logger.LogInformation("MQTT {Label}事件已推送: {Topic}", logLabel, topic);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "MQTT 推送{Label}事件失败", logLabel);
+            }
+        }
+
+        /// <summary>
         /// 推送数据更新事件到 MQTT
         /// 发布到主题：daq/{machineId}/events/data_updated
         /// QOS 0（至多一次），允许丢失，保证低延迟

@@ -52,7 +52,7 @@ public class SystemStateServiceMqttConnectionTests
     }
 
     [Fact]
-    public void UpdateMqttConnectionState_True_FiresEventAndPublishesBoth()
+    public void UpdateMqttConnectionState_True_FiresEventAndPublishesSignalROnly()
     {
         var mqtt = new MockMqttPublisher();
         var signalR = new MockSignalRPublisher();
@@ -64,10 +64,60 @@ public class SystemStateServiceMqttConnectionTests
 
         Assert.True(fired);
         Assert.True(lastValue);
-        Assert.Equal(1, mqtt.PublishCallCount);
-        Assert.Equal("mqtt_connected", mqtt.LastEventType);
+        Assert.Equal(0, mqtt.PublishCallCount);
         Assert.Equal(1, signalR.PublishCallCount);
         Assert.Equal("mqtt_connected", signalR.LastEventType);
+    }
+
+    [Fact]
+    public void GetSystemState_AfterMqttConnected_ReturnsIsMqttConnectedTrue()
+    {
+        var mqtt = new MockMqttPublisher();
+        var signalR = new MockSignalRPublisher();
+        var service = CreateService(mqtt, signalR);
+
+        service.UpdateMqttConnectionState(true);
+        var state = service.GetSystemState();
+
+        Assert.True(state.Server.IsMqttConnected);
+    }
+
+    [Fact]
+    public void GetSystemState_AfterMqttDisconnected_ReturnsIsMqttConnectedFalse()
+    {
+        var mqtt = new MockMqttPublisher();
+        var signalR = new MockSignalRPublisher();
+        var service = CreateService(mqtt, signalR);
+
+        service.UpdateMqttConnectionState(true);
+        service.UpdateMqttConnectionState(false);
+        var state = service.GetSystemState();
+
+        Assert.False(state.Server.IsMqttConnected);
+    }
+
+    [Fact]
+    public void GetSystemState_Initial_ReturnsIsMqttConnectedFalse()
+    {
+        var mqtt = new MockMqttPublisher();
+        var signalR = new MockSignalRPublisher();
+        var service = CreateService(mqtt, signalR);
+
+        var state = service.GetSystemState();
+
+        Assert.False(state.Server.IsMqttConnected);
+    }
+
+    [Fact]
+    public void UpdateMqttConnectionState_True_DoesNotPublishToMqtt()
+    {
+        var mqtt = new MockMqttPublisher();
+        var signalR = new MockSignalRPublisher();
+        var service = CreateService(mqtt, signalR);
+
+        service.UpdateMqttConnectionState(true);
+
+        Assert.Equal(0, mqtt.PublishCallCount);
     }
 
     [Fact]
@@ -89,8 +139,7 @@ public class SystemStateServiceMqttConnectionTests
         // SignalR called for both connect and disconnect
         Assert.Equal("mqtt_disconnected", signalR.LastEventType);
         Assert.Equal(2, signalR.PublishCallCount);
-        // MQTT: only called for connect, not for disconnect
-        Assert.Equal("mqtt_connected", mqtt.LastEventType);
-        Assert.Equal(1, mqtt.PublishCallCount);
+        // MQTT: not called for either connect or disconnect
+        Assert.Equal(0, mqtt.PublishCallCount);
     }
 }

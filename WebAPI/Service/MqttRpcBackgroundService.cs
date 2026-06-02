@@ -45,6 +45,12 @@ namespace WebAPI.Service
         private readonly byte[] _willPayloadBytes;
 
         // ── 预构建的 RPC 错误响应片段（运行时拼入方法名）──────────
+        internal static byte[] BuildWillPayloadBytes()
+        {
+            return Encoding.UTF8.GetBytes(
+                "{\"status\":\"offline\",\"ts\":0,\"eventType\":\"process_crashed\",\"source\":\"mqtt_broker\",\"message\":\"设备已离线\",\"timestamp\":\"0001-01-01T00:00:00Z\"}");
+        }
+
         private static readonly byte[] _errUnknownMethodHead =
             Encoding.UTF8.GetBytes("{\"success\":false,\"code\":\"UNKNOWN_METHOD\",\"message\":\"未知的 RPC 方法: ");
         private static readonly byte[] _errUnknownMethodTail = Encoding.UTF8.GetBytes("\"}");
@@ -56,6 +62,7 @@ namespace WebAPI.Service
         private readonly SemaphoreSlim _reconnectLock = new(1, 1);
         private bool _shouldReconnect = true;
         private IMqttClient? _mqttClient;
+        private readonly CancellationTokenSource _shutdownCts = new();
 
         // ══════════════════════════════════════════════════════════
         //  构造函数
@@ -84,8 +91,7 @@ namespace WebAPI.Service
             _rpcSubscribePattern = $"{RpcTopicPrefix}{settings.MachineId}/#";
 
             // 遗嘱消息：如进程意外崩溃，Broker 据此通知订阅方
-            _willPayloadBytes = Encoding.UTF8.GetBytes(
-                "{\"eventType\":\"process_crashed\",\"source\":\"mqtt_broker\",\"reason\":\"will_message\",\"message\":\"设备已离线\"}");
+            _willPayloadBytes = BuildWillPayloadBytes();
         }
 
         // ══════════════════════════════════════════════════════════
@@ -124,7 +130,7 @@ namespace WebAPI.Service
         /// 连接 Broker 并完成订阅
         /// 异常会向上抛出让调用方（ExecuteAsync / OnDisconnectedAsync）自行处理
         /// </summary>
-        private async Task ConnectAsync(CancellationToken ct)
+        internal async Task ConnectAsync(CancellationToken ct)
         {
             var settings = _mqttSettings.CurrentValue;
 
@@ -172,8 +178,9 @@ namespace WebAPI.Service
                .WithWillQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
                .WithWillRetain(true);
 
-            // 连接MQTT服务器
-            var result = await _mqttClient!.ConnectAsync(opts.Build(), ct);
+            // 连接MQTT服务器（使用 linked token，确保 StopAsync 可取消重连中的连接）
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token, ct);
+            var result = await _mqttClient!.ConnectAsync(opts.Build(), linkedCts.Token);
             if (result.ResultCode != MqttClientConnectResultCode.Success)
             {
                 throw new InvalidOperationException(
@@ -186,7 +193,7 @@ namespace WebAPI.Service
             }
             _logger.LogInformation("MQTT 已连接 {Host}:{Port} ClientId={ClientId}",
                 settings.BrokerHost, settings.BrokerPort, settings.MachineId);
-
+            
             // 确保在订阅前连接依然有效（Broker 可能在连接后立即因认证失败而断连）
             if (!_mqttClient.IsConnected)
             {
@@ -201,8 +208,10 @@ namespace WebAPI.Service
                 ct);
             _logger.LogInformation("已订阅 RPC 主题: {Topic}", _rpcSubscribePattern);
 
-            // 重连成功后更新 MQTT 状态，Coordinator 据此恢复需 MQTT 的服务
-            _systemStateService.UpdateMqttConnectionState(true);
+            await _eventPublisher.PublishDeviceOnlineAsync();
+
+            // 更新系统状态服务中的 MQTT 连接状态（供 API 查询和 UI 显示）
+            _systemStateService.UpdateMqttConnectionState(_mqttClient.IsConnected);
 
             _logger.LogInformation("RPC 服务端就绪，已注册 {Count} 个方法", _rpcHandlers.Count);
         }
@@ -385,11 +394,27 @@ namespace WebAPI.Service
 
         /// <summary>
         /// 服务停止
-        /// 流程：设置重连标志 → 获取重连锁确保无并发 → 注销事件 → 断开 Broker → 释放 MQTT 客户端
+        /// 流程：取消重连中的连接 → 发布 offline retained 消息 → 设置重连标志 → 获取重连锁 → 条件断开/兜底
         /// </summary>
         public override async Task StopAsync(CancellationToken ct)
         {
             _logger.LogInformation("BackgroundService 正在停止…");
+
+            _shutdownCts.Cancel();
+
+            bool offlinePublished = false;
+            if (_mqttClient != null && _mqttClient.IsConnected)
+            {
+                try
+                {
+                    await _eventPublisher.PublishDeviceOfflineAsync();
+                    offlinePublished = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "PublishDeviceOfflineAsync 失败，将跳过正常 DISCONNECT 由 Will 兜底");
+                }
+            }
 
             _shouldReconnect = false;
             _systemStateService.UpdateMqttConnectionState(false);
@@ -405,11 +430,22 @@ namespace WebAPI.Service
 
                     if (_mqttClient.IsConnected)
                     {
-                        try { await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptions(), ct); }
-                        catch (Exception ex) { _logger.LogDebug(ex, "断开时异常（可能已断开）"); }
+                        if (offlinePublished)
+                        {
+                            try { await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptions(), ct); }
+                            catch (Exception ex) { _logger.LogDebug(ex, "断开时异常（可能已断开）"); }
+                            _mqttClient.Dispose();
+                        }
+                        else
+                        {
+                            _logger.LogInformation("PublishDeviceOfflineAsync 未成功，跳过 DisconnectAsync/Dispose，由 OS 关闭 TCP 触发 Broker Will");
+                        }
+                    }
+                    else
+                    {
+                        _mqttClient.Dispose();
                     }
 
-                    _mqttClient.Dispose();
                     _mqttClient = null;
                 }
 
@@ -430,6 +466,7 @@ namespace WebAPI.Service
         /// </summary>
         public override void Dispose()
         {
+            _shutdownCts.Dispose();
             _reconnectLock?.Dispose();
 
             base.Dispose();

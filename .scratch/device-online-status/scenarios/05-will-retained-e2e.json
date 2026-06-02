@@ -1,0 +1,86 @@
+{
+  "scenario": "05-will-retained-e2e",
+  "description": "E2E验证：崩溃→Will→重启→online 完整链路",
+  "version": "1.0",
+  "requiresBroker": true,
+  "phases": {
+    "S_smoke": {
+      "duration_seconds": 120,
+      "description": "单次启停，验证 Will + retained 端到端正确性",
+      "steps": [
+        {
+          "step": 1,
+          "action": "setup",
+          "description": "启动 mock 模式 WebAPI，连接 MQTT Broker",
+          "type": "process_start",
+          "process": "WebAPI",
+          "args": ["--mock"],
+          "timeout_seconds": 30
+        },
+        {
+          "step": 2,
+          "action": "checkpoint",
+          "checkpoint_id": "cp-online-1",
+          "description": "断言收到 retained online 消息",
+          "type": "mqtt_assert",
+          "topic": "daq/{MachineId}/events/will",
+          "timeout_seconds": 10,
+          "assertions": [
+            { "field": "status", "operator": "equals", "value": "online" },
+            { "field": "eventType", "operator": "equals", "value": "device_online" },
+            { "field": "source", "operator": "equals", "value": "device" },
+            { "field": "ts", "operator": "greater_than", "value": 0 },
+            { "field": "message", "operator": "equals", "value": "设备已上线" }
+          ]
+        },
+        {
+          "step": 3,
+          "action": "action",
+          "description": "杀 WebAPI 进程（模拟崩溃）",
+          "type": "process_kill",
+          "process": "WebAPI",
+          "signal": "KILL"
+        },
+        {
+          "step": 4,
+          "action": "checkpoint",
+          "checkpoint_id": "cp-will-offline",
+          "description": "断言收到 Will retained offline 消息",
+          "type": "mqtt_assert",
+          "topic": "daq/{MachineId}/events/will",
+          "timeout_seconds": 90,
+          "assertions": [
+            { "field": "status", "operator": "equals", "value": "offline" },
+            { "field": "eventType", "operator": "equals", "value": "process_crashed" },
+            { "field": "source", "operator": "equals", "value": "mqtt_broker" },
+            { "field": "ts", "operator": "equals", "value": 0 },
+            { "field": "message", "operator": "equals", "value": "设备已离线" }
+          ]
+        },
+        {
+          "step": 5,
+          "action": "action",
+          "description": "重启 WebAPI",
+          "type": "process_start",
+          "process": "WebAPI",
+          "args": ["--mock"],
+          "timeout_seconds": 30
+        },
+        {
+          "step": 6,
+          "action": "checkpoint",
+          "checkpoint_id": "cp-online-2",
+          "description": "断言重启后收到 retained online 消息",
+          "type": "mqtt_assert",
+          "topic": "daq/{MachineId}/events/will",
+          "timeout_seconds": 10,
+          "assertions": [
+            { "field": "status", "operator": "equals", "value": "online" },
+            { "field": "eventType", "operator": "equals", "value": "device_online" },
+            { "field": "ts", "operator": "greater_than", "value": 0 }
+          ]
+        }
+      ]
+    }
+  }
+}

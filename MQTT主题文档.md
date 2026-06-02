@@ -280,22 +280,53 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `state` | `SystemStateDto?` | 当前系统状态快照 |
 | `timestamp` | `DateTime` | 事件时间戳 |
 
-**遗嘱消息特例** — 独立主题 `daq/{MachineId}/events/will`：
+#### 2.3.1a 设备在线状态 — `daq/{MachineId}/events/will`
+
+设备在线状态统一收敛到单一 retained topic，利用 Will + 主动 publish 覆盖实现时序无关的在线监控。同一条 topic 承载三种来源：
+
+| 场景 | 发布者 | 触发时机 |
+|------|--------|---------|
+| 设备上线 | WebAPI 主控进程 | CONNACK 成功后立即 publish |
+| 设备正常下线 | WebAPI 主控进程 | 正常 DISCONNECT 前 publish |
+| 设备异常崩溃 | EMQX Broker（遗嘱消息） | keepalive 超时后自动发布 |
 
 | 项目 | 说明 |
 |------|------|
 | **主题** | `daq/{MachineId}/events/will` |
-| **发布者** | EMQX Broker（遗嘱消息，进程崩溃时自动发布） |
 | **QoS** | 1（至少一次） |
-| **Retain** | **true**（新订阅者立即感知宕机） |
+| **Retain** | **true**（新订阅者立即获取最新状态，后续实时增量更新） |
 
-**遗嘱负载 JSON**
+**负载 JSON（6 字段统一格式）**
 
 ```json
-{"eventType":"process_crashed","source":"mqtt_broker","reason":"will_message","message":"设备已离线"}
+{
+  "status": "online",
+  "ts": 1717400000000,
+  "eventType": "device_online",
+  "source": "device",
+  "message": "设备已上线",
+  "timestamp": "2026-06-03T10:30:00.0000000Z"
+}
 ```
 
-> 遗嘱消息在 `MqttRpcBackgroundService` 连接 Broker 时设置，进程异常退出时由 Broker 代为发布。恢复时需发布 `state_changed`（`eventType="collector_connected"`）覆盖 Retain 状态。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `status` | `string` | `"online"` / `"offline"` |
+| `ts` | `long` | Unix 毫秒时间戳（Will 消息固定为 `0`） |
+| `eventType` | `string` | `"device_online"` / `"device_offline"` / `"process_crashed"` |
+| `source` | `string` | `"device"`（主动） / `"mqtt_broker"`（遗嘱） |
+| `message` | `string` | 可读描述 |
+| `timestamp` | `DateTime` | UTC 时间（Will 消息为零值 `0001-01-01T00:00:00Z`） |
+
+**三种场景对比**
+
+| 场景 | status | eventType | source | ts | message | timestamp |
+|------|--------|-----------|--------|----|---------|-----------|
+| 主动上线 | `"online"` | `"device_online"` | `"device"` | 当前 ms | 设备已上线 | 当前 UTC |
+| 主动下线 | `"offline"` | `"device_offline"` | `"device"` | 当前 ms | 设备正常下线 | 当前 UTC |
+| 遗嘱崩溃 | `"offline"` | `"process_crashed"` | `"mqtt_broker"` | `0` | 设备已离线 | 零值 |
+
+> **注意**：`state_changed` topic 中 `mqtt_connected` / `mqtt_disconnected` 的 MQTT 广播已停发——MQTT 连接状态变更通过本 topic 的 retained 消息覆盖实现，前端通过通配符 `daq/+/events/will` 订阅所有设备的在线状态。`MachineId` 从 topic 路径第二段提取，payload 不冗余携带。
 
 #### 2.3.2 主动查询心跳
 
@@ -489,7 +520,7 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 | `waveform/ch1`, `ch2` | 0 | 否 | 高频流（100ms/帧），丢帧优于积压 |
 | `lowfreq` | 1 | 否 | 低频快照不可丢失 |
 | `state_changed` | 1 | 否 | 状态变更不可丢，但不需回放 |
-| `events/will`（遗嘱） | 1 | **是** | 新订阅者立即感知宕机 |
+| `events/will`（设备状态） | 1 | **是** | Retained 覆盖实现时序无关监控，三种来源统一 topic |
 | `device_alarm` | 1 | **是** | 报警必须送达，覆盖旧值 |
 | `detection/alerts` | 1 | 否 | 检测告警不可丢失 |
 | `data_updated` | 0 | 否 | 低延迟优先，允许丢帧（当前无调用方） |
