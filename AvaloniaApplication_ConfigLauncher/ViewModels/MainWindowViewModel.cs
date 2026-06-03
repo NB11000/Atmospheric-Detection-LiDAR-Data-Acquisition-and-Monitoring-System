@@ -72,8 +72,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 // Switch to 控制 tab (index 1)
                 SelectedTabIndex = 1;
                 ControlVm.PlaceholderText = "WebAPI 已启动 - 控制面板就绪";
-                // Refresh state after switching to control tab
+                // Refresh state and connection status after switching to control tab
                 ControlVm.RefreshStateCommand.Execute(null);
+                _ = RefreshConnectionStatusAsync();
             });
 
         ConfigVm.NotifyBaseUrlChanged = newUrl =>
@@ -247,6 +248,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 SelectedTabIndex = 1;
                 ControlVm.PlaceholderText = "WebAPI 已启动 - 控制面板就绪";
                 ControlVm.RefreshStateCommand.Execute(null);
+                _ = RefreshConnectionStatusAsync();
             }
 
             return ready;

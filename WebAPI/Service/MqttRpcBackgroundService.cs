@@ -248,6 +248,9 @@ namespace WebAPI.Service
             if (!ParseTopic(e.ApplicationMessage.Topic, out var method, out var corrId))
                 return;
 
+            if (e.ApplicationMessage.Topic.EndsWith("/response", StringComparison.Ordinal))
+                return;
+
             var payload = e.ApplicationMessage.Payload.ToArray();
             // MQTT 5.0 规范中，响应主题可由请求消息携带 ResponseTopic 属性指定；
             // 如果没有，则按约定使用 "请求主题/response" 作为响应主题
