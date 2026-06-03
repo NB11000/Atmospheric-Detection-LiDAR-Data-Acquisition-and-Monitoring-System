@@ -5,7 +5,11 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault> 
-	  <SelfContained>true</SelfContained>  	
+	  <SelfContained>true</SelfContained>
+	  <!-- 必加：包含本机库（Avalonia 依赖本机库 关键配置（Avalonia 必加）） -->
+	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	  <!-- 单文件发布 -->
+	  <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

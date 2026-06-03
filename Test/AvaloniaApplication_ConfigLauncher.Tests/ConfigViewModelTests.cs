@@ -252,6 +252,93 @@ public class ConfigViewModelTests
     }
 
     [Fact]
+    public void ModeA_BaseUrl_Defaults_To_Localhost()
+    {
+        var (configManager, tempDir) = CreateTempConfigManager();
+        try
+        {
+            var vm = new ConfigViewModel(configManager);
+
+            Assert.Equal("http://localhost:5135", vm.BaseUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void SaveAndStart_SavesBaseUrl_And_InvokesCallback()
+    {
+        var (configManager, tempDir) = CreateTempConfigManager();
+        try
+        {
+            var vm = new ConfigViewModel(configManager);
+            vm.BrokerHost = "test.mqtt.com";
+            vm.BaseUrl = "http://192.168.1.100:5000";
+
+            string? notifiedUrl = null;
+            vm.NotifyBaseUrlChanged = url => notifiedUrl = url;
+
+            vm.SaveAndStartCommand.Execute(null);
+
+            var loadedUrl = configManager.LoadBaseUrl();
+            Assert.Equal("http://192.168.1.100:5000", loadedUrl);
+            Assert.Equal("http://192.168.1.100:5000", notifiedUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void SwitchToEdit_RestoresBaseUrl()
+    {
+        var (configManager, tempDir) = CreateTempConfigManager();
+        try
+        {
+            configManager.SaveConfig(new MqttSettings { BrokerHost = "host.com", BrokerPort = 8883 });
+            configManager.MarkConfigured();
+            configManager.SaveBaseUrl("http://custom:8080");
+
+            var vm = new ConfigViewModel(configManager);
+            Assert.True(vm.IsModeB);
+            Assert.Equal("http://custom:8080", vm.SummaryBaseUrl);
+
+            vm.SwitchToEditCommand.Execute(null);
+
+            Assert.True(vm.IsModeA);
+            Assert.Equal("http://custom:8080", vm.BaseUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void ModeB_BaseUrl_Loaded_From_Config()
+    {
+        var (configManager, tempDir) = CreateTempConfigManager();
+        try
+        {
+            configManager.SaveConfig(new MqttSettings { BrokerHost = "host.com", BrokerPort = 8883 });
+            configManager.MarkConfigured();
+            configManager.SaveBaseUrl("http://remote:6000");
+
+            var vm = new ConfigViewModel(configManager);
+
+            Assert.True(vm.IsModeB);
+            Assert.Equal("http://remote:6000", vm.SummaryBaseUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void MainWindowViewModel_LoadsBaseUrl_OnConstruction()
     {
         // Arrange
@@ -267,6 +354,6 @@ public class ConfigViewModelTests
         Assert.NotNull(mwvm.ConfigVm);
         Assert.NotNull(mwvm.ControlVm);
         Assert.NotNull(mwvm.LogVm);
-        Assert.Equal("未连接", mwvm.ConnectionStatus);
+        Assert.Equal("未连接", mwvm.WebApiConnectionStatus);
     }
 }

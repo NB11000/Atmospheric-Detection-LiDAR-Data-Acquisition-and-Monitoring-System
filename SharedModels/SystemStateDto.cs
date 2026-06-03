@@ -42,6 +42,11 @@ namespace SharedModels
         public bool IsApiAlive { get; set; }
 
         /// <summary>
+        /// MQTT Broker 是否已连接
+        /// </summary>
+        public bool IsMqttConnected { get; set; }
+
+        /// <summary>
         /// 状态更新时间
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.Now;

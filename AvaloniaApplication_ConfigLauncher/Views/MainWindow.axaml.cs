@@ -19,14 +19,6 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
-    private void BaseUrlTextBox_LostFocus(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.SaveBaseUrl();
-        }
-    }
-
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         if (_confirmedClose)

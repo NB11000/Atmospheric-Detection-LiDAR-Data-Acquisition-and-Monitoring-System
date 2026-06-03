@@ -27,10 +27,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _baseUrl = "http://localhost:5135";
 
     [ObservableProperty]
-    private string _connectionStatus = "未连接";
+    private string _webApiConnectionStatus = "未连接";
 
     [ObservableProperty]
-    private IBrush _connectionStatusColor = Brushes.Gray;
+    private IBrush _webApiConnectionColor = Brushes.Gray;
+
+    [ObservableProperty]
+    private string _mqttConnectionStatus = "—";
+
+    [ObservableProperty]
+    private IBrush _mqttConnectionColor = Brushes.Gold;
 
     // ── Tab selection ───────────────────────────────────────
 
@@ -70,6 +76,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 ControlVm.RefreshStateCommand.Execute(null);
             });
 
+        ConfigVm.NotifyBaseUrlChanged = newUrl =>
+        {
+            BaseUrl = newUrl;
+        };
+
         // Issue 04 Part D: Wire up restart flow callbacks
         ConfigVm.ShowRestartConfirmationAsync = ShowRestartConfirmationAsync;
         ConfigVm.RestartWebApiAsync = RestartWebApiAsync;
@@ -88,9 +99,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnBaseUrlChanged(string value)
     {
-        // Issue 04 Part F: Recreate LauncherHttpClient when BaseUrl changes
+        // Recreate LauncherHttpClient when BaseUrl changes
         _httpClient = new LauncherHttpClient(value);
         ControlVm.SetHttpClient(_httpClient);
+        _ = RefreshConnectionStatusAsync();
     }
 
     public void SaveBaseUrl()
@@ -103,29 +115,48 @@ public partial class MainWindowViewModel : ViewModelBase
         ControlVm.SetHttpClient(_httpClient);
     }
 
+
     // ── Connection monitoring ──────────────────────────────────
 
-    public async Task CheckConnectionAsync()
+    /// <summary>
+    /// Unified connection status refresh: HTTP reachability + MQTT state.
+    /// Called on startup, BaseUrl change, and manual refresh.
+    /// </summary>
+    public async Task RefreshConnectionStatusAsync()
     {
-        try
+        var isReachable = await IsWebApiHttpReachableAsync();
+
+        if (isReachable)
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-            var response = await client.GetAsync(BaseUrl + "/");
-            if (response.IsSuccessStatusCode)
+            WebApiConnectionStatus = "已连接";
+            WebApiConnectionColor = Brushes.Green;
+
+            try
             {
-                ConnectionStatus = "已连接";
-                ConnectionStatusColor = Brushes.Green;
+                var state = await _httpClient.GetSystemState();
+                if (state.Server.IsMqttConnected)
+                {
+                    MqttConnectionStatus = "已连接";
+                    MqttConnectionColor = Brushes.Green;
+                }
+                else
+                {
+                    MqttConnectionStatus = "未连接";
+                    MqttConnectionColor = Brushes.Gray;
+                }
             }
-            else
+            catch
             {
-                ConnectionStatus = "未连接";
-                ConnectionStatusColor = Brushes.Gray;
+                MqttConnectionStatus = "—";
+                MqttConnectionColor = Brushes.Gold;
             }
         }
-        catch
+        else
         {
-            ConnectionStatus = "未连接";
-            ConnectionStatusColor = Brushes.Gray;
+            WebApiConnectionStatus = "未连接";
+            WebApiConnectionColor = Brushes.Gray;
+            MqttConnectionStatus = "—";
+            MqttConnectionColor = Brushes.Gold;
         }
     }
 
@@ -133,8 +164,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task AutoDetectWebApi()
     {
-        // Give the constructor time to finish before checking
         await Task.Delay(200);
+        await RefreshConnectionStatusAsync();
 
         try
         {
@@ -142,18 +173,13 @@ public partial class MainWindowViewModel : ViewModelBase
             var response = await client.GetAsync(BaseUrl + "/");
             if (response.IsSuccessStatusCode)
             {
-                // WebAPI is already running — skip config, go straight to 控制 tab
-                ConnectionStatus = "已连接";
-                ConnectionStatusColor = Brushes.Green;
                 SelectedTabIndex = 1;
                 ControlVm.PlaceholderText = "WebAPI 已启动 - 控制面板就绪";
-                // Refresh state
                 ControlVm.RefreshStateCommand.Execute(null);
             }
         }
         catch
         {
-            // WebAPI not running — stay on config tab
         }
     }
 
@@ -245,6 +271,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         ControlVm = new ControlViewModel(_httpClient);
         ConfigVm = new ConfigViewModel(_configManager, _processManager, onReady: () => { });
+        ConfigVm.NotifyBaseUrlChanged = newUrl =>
+        {
+            BaseUrl = newUrl;
+        };
     }
 
     public async Task<bool> ShutdownWebApiAsync()

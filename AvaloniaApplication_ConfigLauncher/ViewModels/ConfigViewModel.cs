@@ -32,6 +32,11 @@ public partial class ConfigViewModel : ViewModelBase
     /// </summary>
     public Action? ExitRequested { get; set; }
 
+    /// <summary>
+    /// Callback when BaseUrl is changed. Set by MainWindowViewModel.
+    /// </summary>
+    public Action<string>? NotifyBaseUrlChanged { get; set; }
+
     // ── Mode flags ──────────────────────────────────────────
 
     [ObservableProperty]
@@ -41,6 +46,9 @@ public partial class ConfigViewModel : ViewModelBase
     private bool _isModeB;
 
     // ── Mode A: core form fields ────────────────────────────
+
+    [ObservableProperty]
+    private string _baseUrl = "http://localhost:5135";
 
     [ObservableProperty]
     private string _brokerHost = "";
@@ -121,6 +129,8 @@ public partial class ConfigViewModel : ViewModelBase
         _processManager = processManager;
         _onReady = onReady;
 
+        BaseUrl = _configManager.LoadBaseUrl();
+
         if (_configManager.HasExistingConfig())
         {
             _loadedSettings = _configManager.LoadConfig();
@@ -179,6 +189,9 @@ public partial class ConfigViewModel : ViewModelBase
         _configManager.SaveConfig(settings);
         _configManager.MarkConfigured();
 
+        _configManager.SaveBaseUrl(BaseUrl);
+        NotifyBaseUrlChanged?.Invoke(BaseUrl);
+
         var markerExists = _configManager.HasExistingConfig();
         var loadedBack = _configManager.LoadConfig();
 
@@ -232,9 +245,19 @@ public partial class ConfigViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void SwitchToSummary()
+    {
+        _loadedSettings = _configManager.LoadConfig();
+        LoadSummaryFromSettings(_loadedSettings);
+        IsModeA = false;
+        IsModeB = true;
+    }
+
+    [RelayCommand]
     private void SwitchToEdit()
     {
         _loadedSettings = _configManager.LoadConfig();
+        BaseUrl = _configManager.LoadBaseUrl();
         BrokerHost = _loadedSettings.BrokerHost;
         BrokerPortText = _loadedSettings.BrokerPort.ToString();
         MachineId = _loadedSettings.MachineId;

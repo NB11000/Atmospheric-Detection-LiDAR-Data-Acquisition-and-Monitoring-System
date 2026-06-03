@@ -21,24 +21,23 @@
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
             Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
             Padding="8,4">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto">
 
-        <TextBlock Grid.Column="0" Text="WebAPI 地址:"
-                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <!-- WebAPI 状态 -->
+        <Ellipse Grid.Column="0" Width="10" Height="10"
+                 Fill="{Binding WebApiConnectionColor}"
+                 VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <TextBlock Grid.Column="1" Text="{Binding WebApiConnectionStatus, StringFormat='WebAPI: {0}'}"
+                   VerticalAlignment="Center" Margin="0,0,16,0"
+                   Foreground="{Binding WebApiConnectionColor}"/>
 
-        <TextBox Grid.Column="1" Text="{Binding BaseUrl}"
-                 VerticalAlignment="Center" MinWidth="200"
-                 LostFocus="BaseUrlTextBox_LostFocus"/>
-
-        <!-- Connection indicator dot -->
-        <Ellipse Grid.Column="2"
-                 Width="10" Height="10"
-                 Fill="{Binding ConnectionStatusColor}"
-                 VerticalAlignment="Center" Margin="12,0,4,0"/>
-
-        <TextBlock Grid.Column="3" Text="{Binding ConnectionStatus}"
-                   VerticalAlignment="Center" Margin="0,0,8,0"
-                   Foreground="{Binding ConnectionStatusColor}"/>
+        <!-- MQTT 状态 -->
+        <Ellipse Grid.Column="2" Width="10" Height="10"
+                 Fill="{Binding MqttConnectionColor}"
+                 VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <TextBlock Grid.Column="3" Text="{Binding MqttConnectionStatus, StringFormat='MQTT: {0}'}"
+                   VerticalAlignment="Center"
+                   Foreground="{Binding MqttConnectionColor}"/>
       </Grid>
     </Border>
 

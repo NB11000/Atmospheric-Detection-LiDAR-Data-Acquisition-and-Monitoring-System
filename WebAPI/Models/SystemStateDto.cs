@@ -47,6 +47,11 @@ namespace WebAPI.Models
         /// 状态更新时间
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        
+        /// <summary>
+        /// MQTT 连接状态（由 SystemStateService 本地缓存维护，供 API 查询和 UI 显示）
+        /// </summary>
+        public bool IsMqttConnected { get; internal set; }
     }
 
     /// <summary>
