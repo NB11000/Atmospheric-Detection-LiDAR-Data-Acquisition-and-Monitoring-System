@@ -1,4 +1,4 @@
-namespace WebAPI.Models
+namespace SharedModels
 {
     /// <summary>
     /// 激光雷达反演算法配置参数（从 DeviceConfig.json 的 LidarAlgorithm 节读取）

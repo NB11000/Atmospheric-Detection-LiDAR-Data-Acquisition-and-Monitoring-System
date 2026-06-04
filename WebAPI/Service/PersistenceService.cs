@@ -7,7 +7,7 @@ using ConsoleApp1.Helpers;
 using ConsoleApp1.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using WebAPI.Models;
+using SharedModels;
 using WebAPISharedMemoryFramework;
 
 namespace WebAPI.Service

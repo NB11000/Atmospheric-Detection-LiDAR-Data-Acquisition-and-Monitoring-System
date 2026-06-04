@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using WebAPI.Models;
+using RadarConfig = SharedModels.RadarConfig;
 
 namespace WebAPI.Controllers
 {
@@ -333,6 +334,16 @@ namespace WebAPI.Controllers
             //使用注入的配置助手读取配置文件中的激光雷达配置并更新全局配置实体
             _configHelper.ReadRadarDeviceConfig();
             return Ok(Program.RadarConfig); // 返回最新的全局配置实体（包含采集卡配置）给前端，方便前端展示当前配置状态  
+        }
+
+        /// <summary>
+        /// 返回激光雷达配置的默认值
+        /// </summary>
+        /// <returns>RadarConfig 默认实例</returns>
+        [HttpPost("config/default")]
+        public IActionResult DefaultConfig()
+        {
+            return Ok(new RadarConfig());
         }
 
     }

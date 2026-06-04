@@ -1,0 +1,198 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvaloniaApplication_ConfigLauncher.ViewModels"
+             xmlns:conv="using:AvaloniaApplication_ConfigLauncher.Converters"
+             x:Class="AvaloniaApplication_ConfigLauncher.Views.DeviceConfigView"
+             x:DataType="vm:DeviceConfigViewModel">
+
+  <UserControl.Resources>
+    <conv:IntEqualsConverter x:Key="IntEqualsConverter"/>
+  </UserControl.Resources>
+
+  <Grid>
+  <!-- Shown when WebAPI is connected -->
+  <ScrollViewer IsVisible="{Binding IsWebApiConnected}">
+    <StackPanel Margin="10" Spacing="10">
+
+      <!-- Sub-tab header row -->
+      <StackPanel Orientation="Horizontal" Spacing="2">
+        <Button Content="采集卡" Click="SubTab0_Click"/>
+        <Button Content="激光器" Click="SubTab1_Click"/>
+        <Button Content="激光雷达算法" Click="SubTab2_Click"/>
+        <Button Content="持久化" Click="SubTab3_Click"/>
+      </StackPanel>
+
+      <!-- ═══ Capture Card form (index 0) ═══ -->
+      <StackPanel Spacing="6"
+                  IsVisible="{Binding SelectedSubTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=0}">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="设备编号:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="0" Grid.Column="1" SelectedIndex="{Binding CaptureDeviceId}">
+            <ComboBoxItem Content="0"/>
+            <ComboBoxItem Content="1"/>
+            <ComboBoxItem Content="2"/>
+            <ComboBoxItem Content="3"/>
+            <ComboBoxItem Content="4"/>
+            <ComboBoxItem Content="5"/>
+            <ComboBoxItem Content="6"/>
+            <ComboBoxItem Content="7"/>
+            <ComboBoxItem Content="8"/>
+            <ComboBoxItem Content="9"/>
+            <ComboBoxItem Content="10"/>
+            <ComboBoxItem Content="11"/>
+            <ComboBoxItem Content="12"/>
+            <ComboBoxItem Content="13"/>
+            <ComboBoxItem Content="14"/>
+            <ComboBoxItem Content="15"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="同步通道:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="1" Grid.Column="1" SelectedIndex="{Binding CaptureSyncChannelIndex}">
+            <ComboBoxItem Content="通道 1"/>
+            <ComboBoxItem Content="通道 2"/>
+            <ComboBoxItem Content="通道 1 和通道 2"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="采样频率 (kHz):" VerticalAlignment="Center"/>
+          <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto">
+            <TextBox Grid.Column="0" Text="{Binding CaptureSampleRate}"/>
+            <TextBlock Grid.Column="1" Text="kHz" VerticalAlignment="Center" Margin="8,0,0,0"/>
+          </Grid>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="时钟源:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="3" Grid.Column="1" SelectedIndex="{Binding CaptureClockSourceIndex}">
+            <ComboBoxItem Content="内时钟"/>
+            <ComboBoxItem Content="外时钟"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="半满阈值:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="4" Grid.Column="1" SelectedIndex="{Binding CaptureHalfFullThreshold}">
+            <ComboBoxItem Content="2M"/>
+            <ComboBoxItem Content="1M"/>
+            <ComboBoxItem Content="512K"/>
+            <ComboBoxItem Content="256K"/>
+            <ComboBoxItem Content="128K"/>
+            <ComboBoxItem Content="64K"/>
+            <ComboBoxItem Content="32K"/>
+            <ComboBoxItem Content="16K"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="触发源:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="5" Grid.Column="1" SelectedIndex="{Binding CaptureTriggerSourceIndex}">
+            <ComboBoxItem Content="外触发"/>
+            <ComboBoxItem Content="软触发"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="量程:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="6" Grid.Column="1" SelectedIndex="{Binding CaptureRangeIndex}">
+            <ComboBoxItem Content="±5V"/>
+            <ComboBoxItem Content="±10V"/>
+          </ComboBox>
+        </Grid>
+      </StackPanel>
+
+      <!-- ═══ Radar form (index 1) ═══ -->
+      <StackPanel Spacing="6"
+                  IsVisible="{Binding SelectedSubTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=1}">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="激光功率 (mW):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding RadarLaserPower}"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="激光调制频率 (Hz):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding RadarLaserModulationFrequency}"/>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="串口号:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="2" Grid.Column="1" SelectedIndex="{Binding RadarSerialPortIndex}">
+            <ComboBoxItem Content="COM1"/>
+            <ComboBoxItem Content="COM2"/>
+            <ComboBoxItem Content="COM3"/>
+            <ComboBoxItem Content="COM4"/>
+            <ComboBoxItem Content="COM5"/>
+            <ComboBoxItem Content="COM6"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="波特率:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="3" Grid.Column="1" SelectedIndex="{Binding RadarBaudRateIndex}">
+            <ComboBoxItem Content="9600"/>
+            <ComboBoxItem Content="19200"/>
+            <ComboBoxItem Content="38400"/>
+            <ComboBoxItem Content="57600"/>
+            <ComboBoxItem Content="115200"/>
+          </ComboBox>
+        </Grid>
+      </StackPanel>
+
+      <!-- ═══ LiDAR form (index 2) ═══ -->
+      <StackPanel Spacing="6"
+                  IsVisible="{Binding SelectedSubTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=2}">
+        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="增益均衡系数:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding LidarGainEqualizationCoefficient}"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="K 常数:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding LidarKConstant}"/>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="接收孔径 D (m):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding LidarReceiverApertureD_m}"/>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="路径长度 L (m):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding LidarPathLengthL_m}"/>
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Cn² 窗口帧数:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding LidarCn2WindowFrames}"/>
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Fernald 边界距离 (m):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding LidarFernaldBoundaryDistance_m}"/>
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="激光波长 (nm):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding LidarLaserWavelength_nm}"/>
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Angstrom 指数:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding LidarAngstromExponent}"/>
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="暗电流采样数:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding LidarDarkCurrentSampleCount}"/>
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="采样率 (Hz):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="9" Grid.Column="1" Text="{Binding LidarSampleRateHz}"/>
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="盲区距离 (m):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="10" Grid.Column="1" Text="{Binding LidarBlindZoneDistance_m}"/>
+        </Grid>
+      </StackPanel>
+
+      <!-- ═══ Persistence form (index 3) ═══ -->
+      <StackPanel Spacing="6"
+                  IsVisible="{Binding SelectedSubTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=3}">
+        <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto" RowSpacing="6">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="数据目录:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PersistenceDataDirectory}"
+                   Watermark="D:\Data"/>
+          <Button Grid.Row="0" Grid.Column="2" Content="选择文件夹" Margin="5,0,0,0"
+                  Click="SelectDataDir_Click"/>
+        </Grid>
+      </StackPanel>
+
+      <!-- Action buttons row -->
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Content="保存" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="刷新" Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="恢复默认" Command="{Binding ResetDefaultCommand}" IsEnabled="{Binding !IsBusy}"/>
+      </StackPanel>
+
+      <!-- Status message -->
+      <TextBlock Text="{Binding StatusMessage}" Foreground="Green"/>
+
+    </StackPanel>
+  </ScrollViewer>
+
+  <!-- Shown when WebAPI is not connected -->
+  <TextBlock IsVisible="{Binding !IsWebApiConnected}"
+             Text="WebAPI 未连接，设备参数不可用"
+             FontSize="14"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center"
+             Margin="20"/>
+  </Grid>
+
+</UserControl>

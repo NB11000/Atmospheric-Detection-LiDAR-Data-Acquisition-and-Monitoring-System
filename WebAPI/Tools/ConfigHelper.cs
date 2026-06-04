@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 using WebAPI;
 using WebAPI.Controllers;
 using System.Runtime.CompilerServices;
-using WebAPI.Models;
+using SharedModels;
 
 [assembly: InternalsVisibleTo("WebAPI.Tests")]
 

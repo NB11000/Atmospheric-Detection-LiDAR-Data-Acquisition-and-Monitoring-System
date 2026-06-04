@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using WebAPI.Models;
+using CaptureCardConfig = SharedModels.CaptureCardConfig;
 using WebAPI.Service;
 using WebAPI.Tools;
 

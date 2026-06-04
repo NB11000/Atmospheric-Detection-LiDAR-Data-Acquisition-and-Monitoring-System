@@ -6,7 +6,7 @@ using ConsoleApp1.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using WebAPI.Models;
+using SharedModels;
 using WebAPI.Service;
 using WebAPISharedMemoryFramework;
 using Xunit;

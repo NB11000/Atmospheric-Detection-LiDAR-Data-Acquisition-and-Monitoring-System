@@ -57,12 +57,16 @@ _Avoid_: Web 服务、API 进程
 ConsoleApp1，直接驱动 USB1602 采集卡，运行 5 条线程（ADWork / ADDraw / Analysis / Detection / UI），通过 gRPC 双向流与主控进程通信。
 
 **配置启动器 (Config Launcher)**：
-AvaloniaApplication_ConfigLauncher，跨平台桌面应用，封装 MQTT 配置 GUI 和本地控制面板。用户通过它填写 MQTT 凭据、写入 appsettings.json、拉起 WebAPI 进程、并通过 HTTP API 本地操控采集卡和激光器。非架构核心路径——主控进程可脱离启动器独立运行。
+AvaloniaApplication_ConfigLauncher，跨平台桌面应用，封装 MQTT 配置 GUI、设备参数面板和本地控制面板。用户通过它填写 MQTT 凭据、写入 appsettings.json、拉起 WebAPI 进程、修改设备配置参数、并通过 HTTP API 本地操控采集卡和激光器。非架构核心路径——主控进程可脱离启动器独立运行。
 _Avoid_: MQTT 启动器、桌面启动器
 
 **本地控制面板 (Local Control Panel)**：
 配置启动器内的控制分页，通过 WebAPI 的 HTTP 接口（api/collector、api/laser、api/system/state）下发指令并查看状态快照，手动刷新。用于远程前端（MQTT 通道）失效时的备用本地控制。
 _Avoid_: 本地控制台、本地操作面板
+
+**设备参数面板 (Device Parameter Panel)**：
+配置启动器内的参数设置分页，通过 WebAPI 的 HTTP 接口读写 DeviceConfig.json 中的采集卡 / 激光雷达算法 / 激光器 / 持久化四组配置。每节独立保存、刷新、恢复默认，仅在 WebAPI 已连接时可用。
+_Avoid_: 参数设置页、设备配置页
 
 **持久化 (Persistence)**：
 从 CoreDataBus 按配置周期（1s / 5s / 30s / 1min / 5min）读取**单条**最新结构化采样点，写入 CSV。本质是周期性快照抽样，非全量归档。

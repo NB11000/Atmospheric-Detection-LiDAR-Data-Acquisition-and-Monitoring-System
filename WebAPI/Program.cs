@@ -15,7 +15,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using WebAPI.Tools;
-using WebAPI.Models;
 using SharedModels;
 using WebAPI.Service;
 using WebAPI.Hubs;

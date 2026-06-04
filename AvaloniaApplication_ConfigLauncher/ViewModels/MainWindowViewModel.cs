@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public ConfigViewModel ConfigVm { get; }
     public ControlViewModel ControlVm { get; }
     public LogViewModel LogVm { get; } = new();
+    public DeviceConfigViewModel DeviceConfigVm { get; }
 
     // ── Status bar ──────────────────────────────────────────
 
@@ -64,6 +65,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // Issue 04 Part B: Create ControlViewModel with HttpClient
         ControlVm = new ControlViewModel(_httpClient);
 
+        DeviceConfigVm = new DeviceConfigViewModel(_httpClient);
+
         ConfigVm = new ConfigViewModel(
             _configManager,
             _processManager,
@@ -103,6 +106,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Recreate LauncherHttpClient when BaseUrl changes
         _httpClient = new LauncherHttpClient(value);
         ControlVm.SetHttpClient(_httpClient);
+        DeviceConfigVm.SetHttpClient(_httpClient);
         _ = RefreshConnectionStatusAsync();
     }
 
@@ -114,6 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // without changing value. Recreate to be safe.
         _httpClient = new LauncherHttpClient(BaseUrl);
         ControlVm.SetHttpClient(_httpClient);
+        DeviceConfigVm.SetHttpClient(_httpClient);
     }
 
 
@@ -131,6 +136,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             WebApiConnectionStatus = "已连接";
             WebApiConnectionColor = Brushes.Green;
+            DeviceConfigVm.IsWebApiConnected = true;
 
             try
             {
@@ -156,6 +162,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             WebApiConnectionStatus = "未连接";
             WebApiConnectionColor = Brushes.Gray;
+            DeviceConfigVm.IsWebApiConnected = false;
             MqttConnectionStatus = "—";
             MqttConnectionColor = Brushes.Gold;
         }
@@ -272,6 +279,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _reachabilityClient = reachabilityClient;
 
         ControlVm = new ControlViewModel(_httpClient);
+        DeviceConfigVm = new DeviceConfigViewModel(_httpClient);
         ConfigVm = new ConfigViewModel(_configManager, _processManager, onReady: () => { });
         ConfigVm.NotifyBaseUrlChanged = newUrl =>
         {

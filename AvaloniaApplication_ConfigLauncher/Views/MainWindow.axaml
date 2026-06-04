@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
         x:Class="AvaloniaApplication_ConfigLauncher.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="数据采集系统 — 配置启动器"
+        Title="数据采集系统 — 启动器"
         Width="700" Height="500"
         MinWidth="550" MinHeight="400">
 
@@ -51,6 +51,9 @@
       </TabItem>
       <TabItem Header="日志">
         <ContentControl Content="{Binding LogVm}"/>
+      </TabItem>
+      <TabItem Header="设备参数">
+        <ContentControl Content="{Binding DeviceConfigVm}"/>
       </TabItem>
     </TabControl>
   </DockPanel>

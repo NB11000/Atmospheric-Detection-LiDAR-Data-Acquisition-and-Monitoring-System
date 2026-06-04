@@ -6,6 +6,7 @@ using System;
 using System.Threading.Tasks;
 using WebAPI.Tools;
 using WebAPI.Models;
+using CaptureCardConfig = SharedModels.CaptureCardConfig;
 
 namespace WebAPI.Controllers
 {

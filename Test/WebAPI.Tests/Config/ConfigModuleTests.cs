@@ -1,5 +1,5 @@
 using System.Text.Json;
-using WebAPI.Models;
+using SharedModels;
 using WebAPI.Tools;
 using Xunit;
 

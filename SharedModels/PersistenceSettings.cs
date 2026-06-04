@@ -1,4 +1,4 @@
-namespace WebAPI.Models
+namespace SharedModels
 {
     /// <summary>
     /// 持久化配置选项

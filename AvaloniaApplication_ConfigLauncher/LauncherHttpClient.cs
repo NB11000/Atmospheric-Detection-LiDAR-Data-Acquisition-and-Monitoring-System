@@ -86,6 +86,50 @@ public class LauncherHttpClient
     public Task<CommandResult> LaserOn() => PostLaserCommand("on");
     public Task<CommandResult> LaserOff() => PostLaserCommand("off");
 
+    // ── CaptureCard Config ───────────────────────────────────
+
+    public Task<CaptureCardConfig?> GetCaptureCardConfig()
+        => PostConfigReadAsync<CaptureCardConfig>("/api/collector/command/config/read");
+
+    public Task<CaptureCardConfig?> UpdateCaptureCardConfig(CaptureCardConfig config)
+        => PostConfigAsync<CaptureCardConfig>("/api/collector/command/config/update", config);
+
+    public Task<CaptureCardConfig?> GetDefaultCaptureCardConfig()
+        => GetConfigAsync<CaptureCardConfig>("/api/collector/command/config/default");
+
+    // ── Radar Config ─────────────────────────────────────────
+
+    public Task<RadarConfig?> GetRadarConfig()
+        => PostConfigReadAsync<RadarConfig>("/api/laser/config/read");
+
+    public Task<RadarConfig?> UpdateRadarConfig(RadarConfig config)
+        => PostConfigAsync<RadarConfig>("/api/laser/config/update", config);
+
+    public Task<RadarConfig?> GetDefaultRadarConfig()
+        => GetConfigAsync<RadarConfig>("/api/laser/config/default");
+
+    // ── Lidar Config ─────────────────────────────────────────
+
+    public Task<LidarAlgorithmConfig?> GetLidarConfig()
+        => PostConfigReadAsync<LidarAlgorithmConfig>("/api/lidar/config/read");
+
+    public Task<LidarAlgorithmConfig?> UpdateLidarConfig(LidarAlgorithmConfig config)
+        => PostConfigAsync<LidarAlgorithmConfig>("/api/lidar/config/update", config);
+
+    public Task<LidarAlgorithmConfig?> GetDefaultLidarConfig()
+        => GetConfigAsync<LidarAlgorithmConfig>("/api/lidar/config/default");
+
+    // ── Persistence Config ───────────────────────────────────
+
+    public Task<PersistenceSettings?> GetPersistenceConfig()
+        => PostConfigReadAsync<PersistenceSettings>("/api/persistence/config/read");
+
+    public Task<PersistenceSettings?> UpdatePersistenceConfig(PersistenceSettings config)
+        => PostConfigAsync<PersistenceSettings>("/api/persistence/config/update", config);
+
+    public Task<PersistenceSettings?> GetDefaultPersistenceConfig()
+        => GetConfigAsync<PersistenceSettings>("/api/persistence/config/default");
+
     // ── Helpers ──────────────────────────────────────────────
 
     private async Task<CommandResult> PostCollectorCommand(string command)
@@ -140,6 +184,59 @@ public class LauncherHttpClient
                 Code = "CONNECTION_ERROR",
                 Message = $"无法连接到 WebAPI: {ex.Message}"
             };
+        }
+    }
+
+    private async Task<T?> GetConfigAsync<T>(string path) where T : class
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(_baseUrl + path);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<T?> PostConfigAsync<T>(string path, object body) where T : class
+    {
+        try
+        {
+            var content = new StringContent(
+                JsonSerializer.Serialize(body, _jsonOptions),
+                Encoding.UTF8,
+                "application/json");
+            var response = await _httpClient.PostAsync(_baseUrl + path, content);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<T?> PostConfigReadAsync<T>(string path) where T : class
+    {
+        try
+        {
+            var content = new StringContent(
+                "{}",
+                Encoding.UTF8,
+                "application/json");
+            var response = await _httpClient.PostAsync(_baseUrl + path, content);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+        }
+        catch
+        {
+            return null;
         }
     }
 }

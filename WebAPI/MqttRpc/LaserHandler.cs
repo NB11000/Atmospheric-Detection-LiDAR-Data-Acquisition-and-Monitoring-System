@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CniLaserControl;
 using Microsoft.Extensions.Logging;
 using WebAPI.Models;
+using RadarConfig = SharedModels.RadarConfig;
 using WebAPI.Service;
 using WebAPI.Tools;
 
