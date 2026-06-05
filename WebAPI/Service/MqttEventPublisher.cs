@@ -36,6 +36,11 @@ namespace WebAPI.Service
         public IMqttClient? MqttClient { get; set; }
 
         /// <summary>
+        /// 波形专用 MQTT 客户端，与主连接物理隔离，避免 QoS 0 洪流阻塞控制通道
+        /// </summary>
+        public IMqttClient? WaveformMqttClient { get; set; }
+
+        /// <summary>
         /// 构造函数，注入系统状态服务和 MQTT 配置
         /// </summary>
         /// <param name="stateService">系统状态服务</param>
@@ -261,9 +266,10 @@ namespace WebAPI.Service
         /// <param name="ch1Payload">通道1波形负载（1000点 × double = 8KB）</param>
         /// <param name="ch2Payload">通道2波形负载（1000点 × double = 8KB）</param>
         /// <param name="frameBytes">单通道字节数（默认 8000，与共享内存帧大小一致）</param>
-        public async Task PublishWaveformDataAsync(byte[] ch1Payload, byte[] ch2Payload, int frameBytes)
+        public void PublishWaveformDataAsync(byte[] ch1Payload, byte[] ch2Payload, int frameBytes)
         {
-            if (MqttClient == null || !MqttClient.IsConnected)
+            var client = WaveformMqttClient;
+            if (client == null || !client.IsConnected)
             {
                 return;
             }
@@ -285,9 +291,9 @@ namespace WebAPI.Service
                     PayloadSegment = new ArraySegment<byte>(ch2Payload, 0, frameBytes)
                 };
 
-                await Task.WhenAll(
-                    MqttClient.PublishAsync(msg1),
-                    MqttClient.PublishAsync(msg2));
+                _ = Task.WhenAll(
+                    client.PublishAsync(msg1),
+                    client.PublishAsync(msg2));
             }
             catch (Exception ex)
             {

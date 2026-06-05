@@ -62,6 +62,7 @@ namespace WebAPI.Service
         private readonly SemaphoreSlim _reconnectLock = new(1, 1);
         private bool _shouldReconnect = true;
         private IMqttClient? _mqttClient;
+        private IMqttClient? _waveformClient;
         private readonly CancellationTokenSource _shutdownCts = new();
 
         // ══════════════════════════════════════════════════════════
@@ -118,6 +119,19 @@ namespace WebAPI.Service
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "MQTT 初始连接失败，等待 DisconnectedAsync 事件驱动重连");
+            }
+
+            // ── 波形专用连接（独立通道，不与控制/低频消息竞争 TCP 发送缓冲区）──
+            _waveformClient = factory.CreateMqttClient();
+            _waveformClient.DisconnectedAsync += OnWaveformDisconnectedAsync;
+            _eventPublisher.WaveformMqttClient = _waveformClient;
+            try
+            {
+                await ConnectWaveformAsync(stoppingToken);
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "波形连接初始失败，等待自动重连");
             }
 
             // 服务运行期间保持活动，直到外部取消信号触发
@@ -214,6 +228,81 @@ namespace WebAPI.Service
             _systemStateService.UpdateMqttConnectionState(_mqttClient.IsConnected);
 
             _logger.LogInformation("RPC 服务端就绪，已注册 {Count} 个方法", _rpcHandlers.Count);
+        }
+
+        /// <summary>
+        /// 创建波形专用连接（无遗嘱、无订阅，仅 QoS 0 发布）
+        /// </summary>
+        private async Task ConnectWaveformAsync(CancellationToken ct)
+        {
+            var settings = _mqttSettings.CurrentValue;
+
+            var opts = new MqttClientOptionsBuilder()
+                .WithTcpServer(settings.BrokerHost, settings.BrokerPort)
+                .WithClientId($"{settings.MachineId}-waveform")
+                .WithCleanSession(true)
+                .WithKeepAlivePeriod(TimeSpan.FromSeconds(30))
+                .WithTimeout(TimeSpan.FromSeconds(10));
+
+            if (!string.IsNullOrEmpty(settings.Username))
+                opts.WithCredentials(settings.Username, settings.Password);
+
+            if (settings.UseTls)
+            {
+                opts.WithTlsOptions(tls =>
+                    {
+                        tls.UseTls();
+                        tls.WithSslProtocols(SslProtocols.Tls12 | SslProtocols.Tls13);
+                        if (!string.IsNullOrEmpty(settings.CaCertificatePath))
+                        {
+                            var caCert = new X509Certificate2(settings.CaCertificatePath);
+                            tls.WithClientCertificates(new[] { caCert });
+                        }
+                        tls.WithCertificateValidationHandler(context =>
+                        {
+                            var certificate = context.Certificate as X509Certificate2;
+                            return Tool.ValidateServerCertificate(certificate, context.Chain, context.SslPolicyErrors);
+                        });
+                    });
+            }
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token, ct);
+            var result = await _waveformClient!.ConnectAsync(opts.Build(), linkedCts.Token);
+            if (result.ResultCode != MqttClientConnectResultCode.Success)
+            {
+                throw new InvalidOperationException(
+                    $"波形连接被拒绝: {result.ResultCode} — {result.ReasonString ?? "无详细信息"}");
+            }
+
+            _logger.LogInformation("波形连接已建立 {Host}:{Port} ClientId={ClientId}",
+                settings.BrokerHost, settings.BrokerPort, $"{settings.MachineId}-waveform");
+        }
+
+        /// <summary>
+        /// 波形连接断连回调（简单重连，不订阅、不设遗嘱）
+        /// </summary>
+        private async Task OnWaveformDisconnectedAsync(MqttClientDisconnectedEventArgs args)
+        {
+            _logger.LogWarning("波形连接断开 Reason={Reason}", args.Reason);
+
+            if (!_shouldReconnect)
+                return;
+
+            var delay = TimeSpan.FromSeconds(3);
+            while (_shouldReconnect)
+            {
+                try
+                {
+                    await ConnectWaveformAsync(CancellationToken.None);
+                    _logger.LogInformation("波形连接重连成功");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "波形连接重连失败，{Delay}s 后重试", delay.TotalSeconds);
+                    await Task.Delay(delay);
+                }
+            }
         }
 
 
@@ -350,12 +439,6 @@ namespace WebAPI.Service
                 return;
             }
 
-            if (args.Reason == MqttClientDisconnectReason.NormalDisconnection)
-            {
-                _logger.LogInformation("主动断开，不触发重连");
-                return;
-            }
-
             if (!await _reconnectLock.WaitAsync(0))
             {
                 _logger.LogDebug("重连已在进行中");
@@ -453,6 +536,20 @@ namespace WebAPI.Service
                 }
 
                 _eventPublisher.MqttClient = null;
+
+                // ── 清理波形专用连接 ──
+                if (_waveformClient != null)
+                {
+                    _waveformClient.DisconnectedAsync -= OnWaveformDisconnectedAsync;
+                    if (_waveformClient.IsConnected)
+                    {
+                        try { await _waveformClient.DisconnectAsync(new MqttClientDisconnectOptions(), ct); }
+                        catch (Exception ex) { _logger.LogDebug(ex, "波形连接断开时异常（可能已断开）"); }
+                    }
+                    _waveformClient.Dispose();
+                    _waveformClient = null;
+                }
+                _eventPublisher.WaveformMqttClient = null;
             }
             finally
             {

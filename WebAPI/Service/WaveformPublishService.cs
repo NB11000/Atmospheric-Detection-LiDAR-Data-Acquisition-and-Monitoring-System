@@ -107,7 +107,7 @@ namespace WebAPI.Service
                     _uiSharedBuffer.ReadLatestFrame(ref _waveformBuf1, ref _waveformBuf2);
                     Buffer.BlockCopy(_waveformBuf1, 0, _ch1Bytes, 0, WaveformFrameBytes);
                     Buffer.BlockCopy(_waveformBuf2, 0, _ch2Bytes, 0, WaveformFrameBytes);
-                    await _mqttEventPublisher.PublishWaveformDataAsync(_ch1Bytes, _ch2Bytes, WaveformFrameBytes);
+                    _mqttEventPublisher.PublishWaveformDataAsync(_ch1Bytes, _ch2Bytes, WaveformFrameBytes);
                 }
                 catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
