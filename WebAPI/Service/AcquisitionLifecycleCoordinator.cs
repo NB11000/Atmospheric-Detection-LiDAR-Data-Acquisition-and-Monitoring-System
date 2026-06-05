@@ -19,6 +19,9 @@ namespace WebAPI.Service
             _services = services;
             _logger = logger;
 
+            // 从当前系统状态快照拉取初始 MQTT 连接状态，避免晚创建时错过已触发的连接事件
+            _mqttConnected = systemStateService.GetSystemState().Server.IsMqttConnected;
+
             systemStateService.AcquiringStateChanged += OnAcquiringStateChanged;
             systemStateService.MqttConnectionStateChanged += OnMqttConnectionStateChanged;
         }

@@ -287,6 +287,10 @@ namespace WebAPI
                         buffer: 1_000_000,
                         sampleRate: 1_000_000);
                     Log.Information("核心数据总线已创建，缓冲区容量 1,000,000 采样点");
+                    // 强制实例化采集生命周期协调器，使其订阅 SystemStateService 事件
+                    //（该单例无外部注入引用，懒加载不会自行创建）
+                    app.Services.GetRequiredService<AcquisitionLifecycleCoordinator>();
+                    Log.Information("采集生命周期协调器已启动，等待采集状态变更事件");
                     // 从DI容器中获取配置文件读写辅助类实例
                     var configHelper = app.Services.GetRequiredService<ConfigHelper>();
                     // 读取配置文件并更新全局配置实体
