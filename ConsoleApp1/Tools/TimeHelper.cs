@@ -17,7 +17,7 @@ public static class TimeHelper
         long frequency)
     {
         long elapsedTicks = sampleTick - referenceTick;
-        long elapsed100ns = elapsedTicks * 10_000_000L / frequency;
+        long elapsed100ns = (long)((double)elapsedTicks * 10_000_000L / frequency);
         return new DateTime(referenceUtcTicks + elapsed100ns, DateTimeKind.Utc);
     }
 }

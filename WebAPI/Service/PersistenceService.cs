@@ -98,6 +98,8 @@ namespace WebAPI.Service
                         _coreDataBus.ReferenceUtcTicks,
                         Stopwatch.Frequency);
 
+                    var beijing = utc.AddHours(8);
+
                     var now = DateTime.Now;
                     var fileName = $"{now:yyyy-MM-dd}_{now:HH}.csv";
                     var dataDir = _settings.CurrentValue.DataDirectory;
@@ -114,7 +116,7 @@ namespace WebAPI.Service
                     // 追加写入数据行
                     var line = string.Join(",",
                         sample.Timestamp,
-                        utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),
+                        beijing.ToString("yyyy-MM-ddTHH:mm:ss.fffffff+08:00"),
                         sample.CH1, sample.CH2, sample.Vis, sample.Cn2,
                         sample.Temp, sample.Humi, sample.Press,
                         sample.WindSpd, sample.Rain, sample.WindDir);

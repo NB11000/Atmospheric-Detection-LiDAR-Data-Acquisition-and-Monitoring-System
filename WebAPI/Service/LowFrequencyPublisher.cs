@@ -96,10 +96,12 @@ namespace WebAPI.Service
                         _coreDataBus.ReferenceUtcTicks,
                         Stopwatch.Frequency);
 
+                    var beijing = utc.AddHours(8);
+
                     var payload = new
                     {
                         Timestamp = sample.Timestamp,
-                        UTC = utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),
+                        UTC = beijing.ToString("yyyy-MM-ddTHH:mm:ss.fffffff+08:00"),
                         sample.CH1,
                         sample.CH2,
                         sample.Vis,
