@@ -60,6 +60,7 @@ namespace WebAPI.Service
 
         // ── 重连机制 ──────────────────────────────────────────
         private readonly SemaphoreSlim _reconnectLock = new(1, 1);
+        private readonly SemaphoreSlim _waveformReconnectLock = new(1, 1);
         private bool _shouldReconnect = true;
         private IMqttClient? _mqttClient;
         private IMqttClient? _waveformClient;
@@ -105,13 +106,14 @@ namespace WebAPI.Service
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var factory = new MqttClientFactory();
-            _mqttClient = factory.CreateMqttClient();
 
+            // 主连接
+            _mqttClient = factory.CreateMqttClient();
             _mqttClient.DisconnectedAsync += OnDisconnectedAsync;
             _mqttClient.ApplicationMessageReceivedAsync += HandleRpcRequestAsync;
             _eventPublisher.MqttClient = _mqttClient;
 
-            // 初始连接：失败时不崩溃，由 DisconnectedAsync 事件驱动后续重连
+            // 主连接：失败时不崩溃，由 DisconnectedAsync 事件驱动后续重连
             try
             {
                 await ConnectAsync(stoppingToken);
@@ -236,6 +238,15 @@ namespace WebAPI.Service
         private async Task ConnectWaveformAsync(CancellationToken ct)
         {
             var settings = _mqttSettings.CurrentValue;
+            if (_waveformClient.IsConnected)
+            {
+                _logger.LogInformation("波形MQTT已连接，无需重连");
+                return;
+            }
+            if (_waveformClient.IsConnected)
+            {
+                _logger.LogInformation("当前正在执行连接，禁止重复调用");
+            }
 
             var opts = new MqttClientOptionsBuilder()
                 .WithTcpServer(settings.BrokerHost, settings.BrokerPort)
@@ -279,7 +290,7 @@ namespace WebAPI.Service
         }
 
         /// <summary>
-        /// 波形连接断连回调（简单重连，不订阅、不设遗嘱）
+        /// 波形连接断连回调（重入保护 + 指数退避，避免并发 while 循环刷屏）
         /// </summary>
         private async Task OnWaveformDisconnectedAsync(MqttClientDisconnectedEventArgs args)
         {
@@ -288,20 +299,41 @@ namespace WebAPI.Service
             if (!_shouldReconnect)
                 return;
 
-            var delay = TimeSpan.FromSeconds(3);
-            while (_shouldReconnect)
+            if (!await _waveformReconnectLock.WaitAsync(0))
             {
-                try
+                _logger.LogDebug("波形重连已在进行中，跳过重复触发");
+                return;
+            }
+
+            try
+            {
+                var settings = _mqttSettings.CurrentValue;
+                var delay = TimeSpan.FromSeconds(1);
+                var cap = TimeSpan.FromSeconds(settings.ReconnectDelaySeconds > 0
+                    ? settings.ReconnectDelaySeconds : 60);
+                var n = 0;
+
+                while (_shouldReconnect)
                 {
-                    await ConnectWaveformAsync(CancellationToken.None);
-                    _logger.LogInformation("波形连接重连成功");
-                    return;
+                    n++;
+                    try
+                    {
+                        _logger.LogInformation("波形第 {Attempt} 次重连尝试…", n);
+                        await ConnectWaveformAsync(CancellationToken.None);
+                        _logger.LogInformation("波形连接重连成功");
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "波形第 {Attempt} 次重连失败，{Delay:F1}s 后重试", n, delay.TotalSeconds);
+                        await Task.Delay(delay);
+                        delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, cap.TotalSeconds));
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "波形连接重连失败，{Delay}s 后重试", delay.TotalSeconds);
-                    await Task.Delay(delay);
-                }
+            }
+            finally
+            {
+                _waveformReconnectLock.Release();
             }
         }
 
@@ -458,14 +490,14 @@ namespace WebAPI.Service
                     n++;
                     try
                     {
-                        _logger.LogInformation("第 {Attempt} 次重连尝试…", n);
+                        _logger.LogInformation("主连接：第 {Attempt} 次重连尝试…", n);
                         await ConnectAsync(CancellationToken.None);
-                        _logger.LogInformation("重连成功");
+                        _logger.LogInformation("主连接：重连成功");
                         return;
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "第 {Attempt} 次重连失败，{Delay:F1}s 后重试", n, delay.TotalSeconds);
+                        _logger.LogWarning(ex, "主连接：第 {Attempt} 次重连失败，{Delay:F1}s 后重试", n, delay.TotalSeconds);
                         await Task.Delay(delay);
                         delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, cap.TotalSeconds));
                     }
@@ -538,18 +570,26 @@ namespace WebAPI.Service
                 _eventPublisher.MqttClient = null;
 
                 // ── 清理波形专用连接 ──
-                if (_waveformClient != null)
+                await _waveformReconnectLock.WaitAsync(ct);
+                try
                 {
-                    _waveformClient.DisconnectedAsync -= OnWaveformDisconnectedAsync;
-                    if (_waveformClient.IsConnected)
+                    if (_waveformClient != null)
                     {
-                        try { await _waveformClient.DisconnectAsync(new MqttClientDisconnectOptions(), ct); }
-                        catch (Exception ex) { _logger.LogDebug(ex, "波形连接断开时异常（可能已断开）"); }
+                        _waveformClient.DisconnectedAsync -= OnWaveformDisconnectedAsync;
+                        if (_waveformClient.IsConnected)
+                        {
+                            try { await _waveformClient.DisconnectAsync(new MqttClientDisconnectOptions(), ct); }
+                            catch (Exception ex) { _logger.LogDebug(ex, "波形连接断开时异常（可能已断开）"); }
+                        }
+                        _waveformClient.Dispose();
+                        _waveformClient = null;
                     }
-                    _waveformClient.Dispose();
-                    _waveformClient = null;
+                    _eventPublisher.WaveformMqttClient = null;
                 }
-                _eventPublisher.WaveformMqttClient = null;
+                finally
+                {
+                    _waveformReconnectLock.Release();
+                }
             }
             finally
             {

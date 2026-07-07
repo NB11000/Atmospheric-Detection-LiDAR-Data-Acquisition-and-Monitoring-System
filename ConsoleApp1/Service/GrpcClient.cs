@@ -139,26 +139,7 @@ namespace ConsoleApp1.Service
                             }
                             catch (Exception ex)
                             {
-                                Program.logger.LogError($"发送响应失败: {ex.Message}");
-                                // 如果发送失败，将响应重新放回队列前端以便重试
-                                var retryResponse = ResponsePool.Get();
-                                retryResponse.ResponseId = response.ResponseId;
-                                retryResponse.MessageType = response.MessageType;
-                                retryResponse.ErrorCode = response.ErrorCode;
-                                retryResponse.Content = response.Content;
-                                retryResponse.ProcessId = response.ProcessId;
-                                retryResponse.MHandle = response.MHandle;
-                                // 创建新队列并将失败响应放在最前面
-                                var tempQueue = new ConcurrentQueue<AdResponse>();
-                                tempQueue.Enqueue(retryResponse);
-                                while (ResponseQueue.TryDequeue(out var item))
-                                {
-                                    tempQueue.Enqueue(item);
-                                }
-                                while (tempQueue.TryDequeue(out var item))
-                                {
-                                    ResponseQueue.Enqueue(item);
-                                }
+                                Program.logger.LogError(ex, "发送响应失败: {MessageType}", response.MessageType);
                             }
                             finally
                             {
@@ -308,7 +289,7 @@ namespace ConsoleApp1.Service
 
                         // 向服务端发送退出确认响应（确保服务端收到）
                         response.Content = "EXIT_OK";
-                        ResponseQueue.Enqueue(response);
+                        // ResponseQueue.Enqueue(response);
                         Program.logger.LogInformation("已向服务端发送退出确认响应");
                         // 触发gRPC任务取消和通道关闭
                         Stop();
@@ -332,7 +313,7 @@ namespace ConsoleApp1.Service
 
                     case "GET_COLLECTOR_STATE":
 
-                         response.Content = JsonSerializer.Serialize(aD_Controlcs.GetRuntimeState(), JsonOptions);
+                        response.Content = JsonSerializer.Serialize(aD_Controlcs.GetRuntimeState(), JsonOptions);
                         Program.logger.LogInformation($"客户端[{_processId}]响应:GET_COLLECTOR_STATE");
                         break;
 

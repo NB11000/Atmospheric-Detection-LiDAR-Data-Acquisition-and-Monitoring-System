@@ -20,6 +20,12 @@ namespace WebAPI.Service
         private readonly SystemStateService _stateService;
         private readonly IOptionsMonitor<MqttSettings> _mqttSettings;
         private readonly ILogger<MqttEventPublisher> _logger;
+        private readonly string _machineId;
+        /// <summary>
+        /// 预构建的波形发布消息（复用对象，每帧仅更新 PayloadSegment，避免堆分配）
+        /// </summary>
+        private readonly MqttApplicationMessage _waveformCh1Msg;
+        private readonly MqttApplicationMessage _waveformCh2Msg;
 
         /// <summary>
         /// JSON 序列化选项（紧凑格式，不缩进）
@@ -54,6 +60,20 @@ namespace WebAPI.Service
             _stateService = stateService;
             _mqttSettings = mqttSettings;
             _logger = logger;
+
+            // 缓存 MachineId：运行时不可变，避免热路径每帧读取 IOptionsMonitor
+            _machineId = mqttSettings.CurrentValue.MachineId;
+            // 预分配波形消息：Topic + QoS 一次固化，每帧仅更新 PayloadSegment（struct 赋值，零堆分配）
+            _waveformCh1Msg = new MqttApplicationMessage
+            {
+                Topic = $"daq/{_machineId}/waveform/ch1",
+                QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce
+            };
+            _waveformCh2Msg = new MqttApplicationMessage
+            {
+                Topic = $"daq/{_machineId}/waveform/ch2",
+                QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce
+            };
         }
 
         /// <summary>
@@ -276,24 +296,13 @@ namespace WebAPI.Service
 
             try
             {
-                var machineId = _mqttSettings.CurrentValue.MachineId;
+                // 复用预分配消息对象，仅更新数据段（struct 赋值），避免每帧 new + 字符串拼接
+                _waveformCh1Msg.PayloadSegment = new ArraySegment<byte>(ch1Payload, 0, frameBytes);
+                _waveformCh2Msg.PayloadSegment = new ArraySegment<byte>(ch2Payload, 0, frameBytes);
 
-                var msg1 = new MqttApplicationMessage
-                {
-                    Topic = $"daq/{machineId}/waveform/ch1",
-                    QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce,
-                    PayloadSegment = new ArraySegment<byte>(ch1Payload, 0, frameBytes)
-                };
-                var msg2 = new MqttApplicationMessage
-                {
-                    Topic = $"daq/{machineId}/waveform/ch2",
-                    QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce,
-                    PayloadSegment = new ArraySegment<byte>(ch2Payload, 0, frameBytes)
-                };
-
-                _ = Task.WhenAll(
-                    client.PublishAsync(msg1),
-                    client.PublishAsync(msg2));
+                Task.WhenAll(
+                    client.PublishAsync(_waveformCh1Msg),
+                    client.PublishAsync(_waveformCh2Msg)).Wait();
             }
             catch (Exception ex)
             {
@@ -302,3 +311,84 @@ namespace WebAPI.Service
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

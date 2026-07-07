@@ -724,7 +724,7 @@ namespace ConsoleApp1.Service
                     // 先判断非空，再归还
                     if (block.Buffer != null)
                     {
-                        ArrayPool<byte>.Shared.Return(block.Buffer, true);
+                        ArrayPool<byte>.Shared.Return(block.Buffer);
                         block.Buffer = null; // 关键：归还后置空，杜绝二次归还
                     }
 

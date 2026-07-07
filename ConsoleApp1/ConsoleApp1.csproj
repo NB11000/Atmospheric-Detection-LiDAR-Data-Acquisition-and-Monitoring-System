@@ -22,6 +22,14 @@
 	  <BaseOutputPath>E:\新建文件夹 (2)\数据展示\数据采集与检测系统V2.0\AvaloniaApplication1\bin</BaseOutputPath>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Remove="ZeroMQ.cs" />
   </ItemGroup>

@@ -13,6 +13,16 @@
 	  <PublishTrimmed>false</PublishTrimmed>
 	  <TrimSupported>false</TrimSupported>
 	  <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+	  <Configurations>Debug;Release</Configurations>
+	  <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
