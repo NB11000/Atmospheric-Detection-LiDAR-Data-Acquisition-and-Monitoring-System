@@ -16,8 +16,10 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using WebAPI.Tools;
 using SharedModels;
+using WebAPI.Models;
 using WebAPI.Service;
 using WebAPI.Hubs;
+using WebAPI.Tools;
 using WebAPISharedMemoryFramework;
 using Grpc.Core;
 using Serilog;
@@ -63,13 +65,24 @@ namespace WebAPI
         /// </summary>
         public static Process ChildProcess { get; private set; }
 
+        public static bool IsMockMode { get; private set; }
+        private static readonly CancellationTokenSource _mockCts = new();
+
 
         static void Main(string[] args)
         {
+            var filteredArgs = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--mock")
+                    IsMockMode = true;
+                else
+                    filteredArgs.Add(args[i]);
+            }
 
 #region 服务器配置
 
-            var builder = WebApplication.CreateBuilder(args);
+            var builder = WebApplication.CreateBuilder(filteredArgs.ToArray());
 
             // 配置：后台服务异常时，不停止整个程序
             builder.Services.Configure<HostOptions>(options =>
@@ -298,10 +311,17 @@ namespace WebAPI
                     configHelper.ReadRadarDeviceConfig();
                     configHelper.ReadLidarConfig();
                     configHelper.ReadPersistenceConfig();
-                    // 启动子进程，并将主进程监听的ip地址转递给子进程
+                    // 启动子进程，并将主进程监听的ip地址转递给子进程（或 Mock 模式）
                     int parentProcessId = Process.GetCurrentProcess().Id;
-                    ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);
-                    Log.Information($"子进程已启动，PID={ChildProcess?.Id}, 监听地址: http://localhost:{port}");
+                    if (IsMockMode)
+                    {
+                        StartMockMode(app.Services, coreDataBus, uISharedBuffer);
+                    }
+                    else
+                    {
+                        ChildProcess = Tool.StartChildProcess($"http://localhost:{port}", parentProcessId);
+                        Log.Information($"子进程已启动，PID={ChildProcess?.Id}, 监听地址: http://localhost:{port}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -314,6 +334,13 @@ namespace WebAPI
             {
                 try
                 {
+                    if (IsMockMode)
+                    {
+                        _mockCts.Cancel();
+                        Log.Information("Mock 模式已停止");
+                        return;
+                    }
+
                     if (ChildProcess == null)
                     {
                         Log.Information("未找到子进程实例");
@@ -400,6 +427,29 @@ namespace WebAPI
 
             app.Run();
 
+        }
+
+        private static void StartMockMode(IServiceProvider services, CoreDataBus bus, UISharedBuffer ui)
+        {
+            Log.Information("==================================");
+            Log.Information("Mock 模拟模式已启用（不依赖硬件）");
+            Log.Information("==================================");
+
+            var stateService = services.GetRequiredService<SystemStateService>();
+            stateService.UpdateCollectorStateSilent(_ => new WebAPI.Models.CollectorStateDto
+            {
+                ProcessConnected = true,
+                DeviceOpened = true,
+                Acquiring = true,
+                Handle = 1,
+                LastMessage = "Mock 模式运行中"
+            });
+
+            var logger = services.GetRequiredService<ILogger<MockDataWriter>>();
+            var writer = new MockDataWriter(bus, ui, logger);
+            _ = writer.RunLoopAsync(_mockCts.Token);
+
+            Log.Information("Mock 数据写入器已启动，全链路消费运行中");
         }
     }
 }
